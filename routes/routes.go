@@ -3,8 +3,8 @@ package routes
 import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/rohan3059/bizGrowth/controllers"
-	"github.com/rohan3059/bizGrowth/middleware"
+	"github.com/kravi0/BizGrowth-backend/controllers"
+	"github.com/kravi0/BizGrowth-backend/middleware"
 )
 
 func UserRoutes(incomingRoutes *gin.Engine) {

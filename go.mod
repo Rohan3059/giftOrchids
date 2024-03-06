@@ -1,4 +1,4 @@
-module github.com/rohan3059/bizGrowth
+module github.com/kravi0/BizGrowth-backend
 
 go 1.19
 

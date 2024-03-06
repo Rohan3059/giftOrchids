@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rohan3059/bizGrowth/tokens"
+	"github.com/kravi0/BizGrowth-backend/tokens"
 )
 
 func Authentication() gin.HandlerFunc {

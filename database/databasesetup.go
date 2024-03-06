@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -11,8 +12,13 @@ import (
 )
 
 func DBSet() *mongo.Client {
+		username := strings.TrimSpace("happyclarke")
+    password := strings.TrimSpace("Ravi2580")
 
-	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017"))
+    uri := "mongodb+srv://" + username + ":" + password + "@my-cluster.p7z1vax.mongodb.net/?retryWrites=true&w=majority&appName=my-cluster"
+
+
+	client, err := mongo.NewClient(options.Client().ApplyURI(uri))
 
 	if err != nil {
 		log.Fatal(err)
@@ -27,6 +33,7 @@ func DBSet() *mongo.Client {
 
 	err = client.Ping(context.TODO(), nil)
 	if err != nil {
+		log.Print(err)
 		log.Println("failed to connect to mnongodb")
 		return nil
 	}
@@ -39,14 +46,13 @@ func DBSet() *mongo.Client {
 var Client *mongo.Client = DBSet()
 
 func UserData(client *mongo.Client, collectionName string) *mongo.Collection {
-	var collection *mongo.Collection
-	collection = client.Database("growthbiz").Collection(collectionName)
+	
+	var collection = client.Database("growthbiz").Collection(collectionName)
 	return collection
 }
 
 func ProductData(client *mongo.Client, collectionName string) *mongo.Collection {
-	var productCollection *mongo.Collection
-	productCollection = client.Database("growthbiz").Collection(collectionName)
+	var productCollection = client.Database("growthbiz").Collection(collectionName)
 	return productCollection
 }
 

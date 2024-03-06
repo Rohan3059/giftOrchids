@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rohan3059/bizGrowth/controllers"
-	"github.com/rohan3059/bizGrowth/routes"
+	"github.com/kravi0/BizGrowth-backend/controllers"
+	"github.com/kravi0/BizGrowth-backend/routes"
 	cors "github.com/rs/cors/wrapper/gin"
 )
 
