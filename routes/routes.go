@@ -18,7 +18,6 @@ func UserRoutes(incomingRoutes *gin.Engine) {
     config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization", "Token","token"} // Add "Token" header
     incomingRoutes.Use(cors.New(config))
 	incomingRoutes.GET("/getcategory", controllers.GetCategory())
-	incomingRoutes.POST("/addcategory", controllers.AddCategory())
 	incomingRoutes.PUT("/updatecategory", controllers.EditCategory())
 	incomingRoutes.GET("/getproduct", controllers.GetProduct())
 	incomingRoutes.GET("/product", controllers.SearchProductByQuery())
@@ -43,6 +42,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	
 	incomingRoutes.Use(middleware.Authentication())
 	incomingRoutes.POST("/admin/approveSeller", controllers.ApproveSeller())
+	incomingRoutes.POST("/admin/addcategory", controllers.AddCategory())
 	incomingRoutes.PUT("/admin/updateProduct", controllers.UpdateProduct())
 	incomingRoutes.POST("/admin/add-product", controllers.ProductViewerAdmin())
 	incomingRoutes.GET("/admin/get-enquiry", controllers.GETEnquiryHandler())
