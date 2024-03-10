@@ -15,8 +15,10 @@ import (
 	"github.com/kravi0/BizGrowth-backend/models"
 	generate "github.com/kravi0/BizGrowth-backend/tokens"
 	"github.com/kravi0/BizGrowth-backend/utils"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var UserCollection *mongo.Collection = database.ProductData(database.Client, "User")
@@ -132,6 +134,52 @@ func ValidateOtpHandler() gin.HandlerFunc {
 	}
 }
 
+
+// RegisterUser handles the registration of a new user
+func UpdateUserDetails() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Parse mobile number from request
+		mobileNo := c.PostForm("mobileno")
+		if mobileNo == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "mobile number is not provided"})
+			return
+		}
+
+		// Check if the user with the given mobile number exists
+		var existingUser models.USer
+		filter := bson.M{"mobileno": mobileNo}
+		err := UserCollection.FindOne(context.Background(), filter).Decode(&existingUser)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			return
+		}
+
+		// Parse other user details from form data
+		existingUser.UserName = c.PostForm("user_name")
+		existingUser.Email = c.PostForm("email")
+		existingUser.User_Address = c.PostForm("user_address")
+		// Parse other fields from form data as needed
+
+		// Save updated user details to the database
+		update := bson.M{"$set": bson.M{
+			"user_name":    existingUser.UserName,
+			"email":        existingUser.Email,
+			"user_address": existingUser.User_Address,
+			// Add other fields as needed
+		}}
+		_, err = UserCollection.UpdateOne(context.Background(), filter, update)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update user details"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "user details updated successfully"})
+	}
+}
+
+
+
+
 func generateOTP(mobileNo string) (string, error) {
 	rand.Seed(time.Now().UnixNano())
 	otp := 100000 + rand.Intn(900000)
@@ -157,3 +205,98 @@ func generateOTP(mobileNo string) (string, error) {
 	}
 	return fmt.Sprintf("%06d", otp), nil
 }
+
+
+func LoadSeller() gin.HandlerFunc {
+	return func(c *gin.Context) {
+	sellerID, exists := c.Get("uid")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Seller ID not found in context"})
+		return
+	}
+
+	// Convert sellerID to ObjectID
+	sellerObjID, err := primitive.ObjectIDFromHex(sellerID.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Seller ID"})
+		return
+	}
+
+	// Query the database to get seller information
+	var seller models.Seller // Assuming Seller struct is defined in models package
+	err = SellerCollection.FindOne(context.Background(), bson.M{"_id": sellerObjID}).Decode(&seller)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
+		return
+	}
+
+	// Check if the seller is approved
+	fmt.Print("seller approved", seller.Approved)
+	if !seller.Approved {
+    c.JSON(http.StatusOK, gin.H{"message": "Seller is not approved", "isApproved": false, "seller": seller })
+    return
+}	
+	c.JSON(http.StatusOK, gin.H{"message": "Seller is approved", "isApproved": true, "seller": seller} )
+	}
+}
+
+func RegisterAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var input struct {
+			Name     string `json:"name" binding:"required"`
+			Mobile   string `json:"mobile" binding:"required"`
+			Email    string `json:"email" binding:"required"`
+			Password string `json:"password" binding:"required,min=6"`
+		}
+
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		ctx := context.Background()
+
+		// Check if the email or mobile number is already registered
+		count, err := SellerCollection.CountDocuments(ctx, bson.M{"$or": []bson.M{
+			{"email": input.Email},
+			{"mobile": input.Mobile},
+		}})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if count > 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Email or mobile number already registered"})
+			return
+		}
+
+		// Hash the password before saving it to the database
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+			return
+		}
+
+		admin := models.Seller{
+			ID:           primitive.NewObjectID(),
+			Seller_ID:    "", // You can generate a unique seller ID here if needed
+			Company_Name: input.Name,
+			MobileNo:     input.Mobile,
+			Email:        input.Email,
+			Password:     string(hashedPassword),
+			User_type:    "ADMIN",
+			Created_at:   time.Now(),
+			Updated_at:   time.Now(),
+		}
+
+		// Insert the admin into the database
+		_, err = SellerCollection.InsertOne(ctx, admin)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{"message": "Admin registered successfully"})
+	}
+}
+

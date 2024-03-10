@@ -22,7 +22,12 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.PUT("/updatecategory", controllers.EditCategory())
 	incomingRoutes.GET("/getproduct", controllers.GetProduct())
 	incomingRoutes.GET("/product", controllers.SearchProductByQuery())
-	incomingRoutes.GET("/getseller", controllers.GetSeller())
+	incomingRoutes.POST("/update-user", controllers.UpdateUserDetails())
+	incomingRoutes.POST("/post-requirement",controllers.CreateRequirementMessage())
+	incomingRoutes.GET("/get-productReference",controllers.FetchProductsAndReferencesHandler())
+	incomingRoutes.GET("/product-reference", controllers.GetProductReferenceHandler())
+	incomingRoutes.POST("/add-admin",controllers.RegisterAdmin())
+	
 	//incomingRoutes.GET("/getseller", controllers.GetSeller())
 	incomingRoutes.POST("/sendOTP", controllers.SetOtpHandler())
 	incomingRoutes.POST("/validate", controllers.ValidateOtpHandler())
@@ -37,10 +42,15 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 
 	
 	incomingRoutes.Use(middleware.Authentication())
-	incomingRoutes.PUT("/admin/approveSeller", controllers.ApproveSeller())
+	incomingRoutes.POST("/admin/approveSeller", controllers.ApproveSeller())
 	incomingRoutes.PUT("/admin/updateProduct", controllers.UpdateProduct())
 	incomingRoutes.POST("/admin/add-product", controllers.ProductViewerAdmin())
 	incomingRoutes.GET("/admin/get-enquiry", controllers.GETEnquiryHandler())
+	incomingRoutes.GET("/admin/getseller", controllers.GetSeller())
+	incomingRoutes.GET("/admin/approve-product", controllers.ApproveProduct())
+	incomingRoutes.GET("/seller/info", controllers.LoadSeller())
+	incomingRoutes.DELETE("/admin/delete-product", controllers.DeleteProduct())
+	incomingRoutes.POST("/seller/update-product", controllers.AddProductReferenceHandler())
 
 	//incomingRoutes.GET("/getcategory", controllers.GetCategory())
 }

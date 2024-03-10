@@ -17,9 +17,10 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
-
 var ProductCollection *mongo.Collection = database.ProductData(database.Client, "Products")
 var EnquireCollection *mongo.Collection = database.ProductData(database.Client, "enquire")
+var RequirementMessageCollection *mongo.Collection = database.ProductData(database.Client,"RequirementMessage")
+
 
 func ProductViewerAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -28,7 +29,7 @@ func ProductViewerAdmin() gin.HandlerFunc {
 		defer cancel()
 		// if err := c.BindJSON(&product); err != nil {
 		// 	log.Println("error while binding")
-		// 	c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		// 	c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
 		// 	return
 		// }
 		product.Product_ID = primitive.NewObjectID()
@@ -41,7 +42,7 @@ func ProductViewerAdmin() gin.HandlerFunc {
 			return
 		}
 		if count > 0 {
-			log.Println("error")
+			log.Println("Error")
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "product with this name is already present"})
 			return
 		}
@@ -127,28 +128,24 @@ func UpdateProduct() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		if !checkAdmin(ctx, c) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+			c.JSON(http.StatusForbidden, gin.H{"Error": "forbidden"})
 			return
 		}
 		var product models.Product
 		if err := c.BindJSON(&product); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			log.Println(err)
+			c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
 			return
 		}
-		count, err := ProductCollection.CountDocuments(ctx, primitive.M{"sku": product.SKU})
-
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		if count > 0 {
-			log.Println("error")
-			c.JSON(http.StatusBadRequest, gin.H{"error": "product with this SKU is already present"})
-			return
-		}
+		
 		if product.Product_ID.Hex() == "" {
 			c.Header("content-type", "application/json")
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid ID"})
+			c.Abort()
+			return
+		}
+		if product.Product_ID.IsZero() {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid Product ID"})
 			c.Abort()
 			return
 		}
@@ -163,7 +160,19 @@ func UpdateProduct() gin.HandlerFunc {
 		}
 
 		update := bson.M{"$set": bson.Raw(newProduct)}
-		ProductCollection.UpdateOne(ctx, filter, update)
+		result,err := ProductCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			c.Header("content-type", "application/json")
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
+			c.Abort()
+			return
+		}
+		if result.ModifiedCount < 1 {
+			c.Header("content-type", "application/json")
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to find Product "})
+			c.Abort()
+			return
+		}
 
 		c.JSON(http.StatusOK, product)
 	}
@@ -224,6 +233,214 @@ func SearchProductByQuery() gin.HandlerFunc {
 	}
 }
 
+func ApproveProduct() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		
+		// Check if the user is an admin
+		if !checkAdmin(ctx, c) {
+			c.JSON(http.StatusForbidden, gin.H{"Error": "forbidden"})
+			return
+		}
+		
+		// Extract the product ID from the request parameters
+		productID := c.Query("id")
+		fmt.Println("ProductID=="+productID);
+		objID, err := primitive.ObjectIDFromHex(productID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "invalid product ID"})
+			return
+		}
+
+		// Find the product in the database
+		var product models.Product
+		err = ProductCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&product)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"Error": "product not found"})
+			return
+		}
+
+		// Update the product as approved
+		update := bson.M{"$set": bson.M{"approved": true}}
+		_, err = ProductCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "could not approve product"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "product approved successfully", "product": product})
+	}
+}
+
+func RejectProduct() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		
+		// Check if the user is an admin
+		if !checkAdmin(ctx, c) {
+			c.JSON(http.StatusForbidden, gin.H{"Error": "forbidden"})
+			return
+		}
+		
+		// Extract the product ID from the request parameters
+		productID := c.Param("id")
+		objID, err := primitive.ObjectIDFromHex(productID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "invalid product ID"})
+			return
+		}
+
+		// Find the product in the database
+		var product models.Product
+		err = ProductCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&product)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"Error": "product not found"})
+			return
+		}
+
+		// Update the product as rejected
+		update := bson.M{"$set": bson.M{"approved": false}}
+		_, err = ProductCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "could not reject product"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "product rejected successfully", "product": product})
+	}
+}
+
+func DeleteProduct() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Check admin permission
+		if !checkAdmin(ctx, c) {
+			c.JSON(http.StatusForbidden, gin.H{"Error": "forbidden"})
+			return
+		}
+
+		// Extract product ID from URL parameter
+		productID := c.Query("id")
+
+		// Check if the provided product ID is valid
+		if productID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Product ID can't be empty"})
+			return
+		}
+
+		// Convert product ID to ObjectID
+		objID, err := primitive.ObjectIDFromHex(productID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid Product ID"})
+			return
+		}
+
+		// Prepare filter to find product by ID
+		filter := primitive.M{"_id": objID}
+
+		// Perform delete operation
+		result, err := ProductCollection.DeleteOne(ctx, filter)
+		if err != nil {
+			log.Println(err)
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Something went wrong"})
+			return
+		}
+
+		// Check if any document was deleted
+		if result.DeletedCount < 1 {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to find Product"})
+			return
+		}
+
+		// Return success response
+		c.JSON(http.StatusOK, gin.H{"message": "Product deleted successfully"})
+	}
+}
+
+
+func FetchProductsAndReferencesHandler() gin.HandlerFunc {
+    return func(c *gin.Context) {
+		ctx := context.Background()
+
+		// Aggregate pipeline to fetch products along with populated product references
+		pipeline := []bson.M{
+			{
+				"$lookup": bson.M{
+					"from":         "ProductReferences",
+					"localField":   "product_references.product_id",
+					"foreignField": "_id",
+					"as":           "product_references",
+				},
+			},
+		}
+
+		cursor, err := ProductCollection.Aggregate(ctx, pipeline)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer cursor.Close(ctx)
+
+		var products []bson.M
+		if err := cursor.All(ctx, &products); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, products)
+	}
+}
+
+
+func GetProductReferenceHandler() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        ctx := context.Background()
+
+        pipeline := []bson.M{
+            {
+                "$lookup": bson.M{
+                    "from":         "Products",
+                    "localField":   "product_id",
+                    "foreignField": "_id",
+                    "as":           "product",
+                },
+            },
+           
+            {
+                "$lookup": bson.M{
+                    "from":         "seller",
+                    "localField":   "seller_id",
+                    "foreignField": "_id",
+                    "as":           "seller",
+                },
+            },
+           
+            
+        }
+
+        cursor, err := ProductReference.Aggregate(ctx, pipeline)
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+            return
+        }
+		var results []bson.M
+		
+       
+        if err := cursor.All(ctx, &results); err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+            return
+        }
+
+        c.JSON(http.StatusOK, results)
+    }
+}
+
+
+
 func checkAdmin(ctx context.Context, c *gin.Context) bool {
 
 	email, existse := c.Get("email")
@@ -281,3 +498,4 @@ func checkSeller(ctx context.Context, c *gin.Context) bool {
 	}
 	return false
 }
+

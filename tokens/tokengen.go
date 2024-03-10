@@ -13,7 +13,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
-
 type SignedDetails struct {
 	Email    string
 	MobileNo string
@@ -33,12 +32,12 @@ func TokenGenerator(email string, MobileNo string, Name string, uid string) (sig
 		Name:     Name,
 		Uid:      uid,
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Local().Add(time.Hour * time.Duration(24)).Unix(),
+			ExpiresAt: time.Now().Local().Add(time.Hour * time.Duration(24*7)).Unix(),
 		},
 	}
 	refreshclaims := &SignedDetails{
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Local().Add(time.Hour * time.Duration(168)).Unix(),
+			ExpiresAt: time.Now().Local().Add(time.Hour * time.Duration(24*7)).Unix(),
 		},
 	}
 	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(SECRET_KEY))

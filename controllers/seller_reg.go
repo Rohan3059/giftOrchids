@@ -21,7 +21,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
 )
-
 func HashPassword(password string) string {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	if err != nil {
@@ -130,7 +129,7 @@ func ValidateSellerOtpHandler() gin.HandlerFunc {
 			c.JSON(http.StatusOK, gin.H{"success": "verified"})
 		} else {
 			c.Header("content-type", "application/json")
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid OTP"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "invalid OTP"})
 		}
 	}
 }
@@ -232,12 +231,12 @@ func ApproveSeller() gin.HandlerFunc {
 		seller_id := c.PostForm("sellerid")
 		if seller_id == "" {
 			c.Header("content-type", "application/json")
-			c.JSON(http.StatusBadRequest, gin.H{"error": "seller id is not provided"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "seller id is not provided"})
 		}
 		sellerID, err := primitive.ObjectIDFromHex(seller_id)
 		if err != nil {
 			c.Header("content-type", "application/json")
-			c.JSON(http.StatusBadRequest, gin.H{"error": "please provide valid seller id"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "please provide valid seller id"})
 			log.Fatal(err)
 		}
 
@@ -255,7 +254,7 @@ func ApproveSeller() gin.HandlerFunc {
 		_, err = SellerCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			c.Header("content-type", "application/json")
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
 		}
 		c.Header("content-type", "application/json")
 		c.JSON(http.StatusOK, gin.H{"success": "updated successfully"})
