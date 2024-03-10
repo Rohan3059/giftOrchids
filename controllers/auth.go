@@ -277,13 +277,19 @@ func RegisterAdmin() gin.HandlerFunc {
 			return
 		}
 
+		// Generate a unique seller ID
+		id := primitive.NewObjectID()
+		token, refreshtoken, _ := generate.TokenGenerator(input.Email, input.Mobile, input.Name, id.Hex())
+		
 		admin := models.Seller{
-			ID:           primitive.NewObjectID(),
-			Seller_ID:    "", // You can generate a unique seller ID here if needed
+			ID:          id,
+			Seller_ID:    id.Hex() ,// You can generate a unique seller ID here if needed
 			Company_Name: input.Name,
 			MobileNo:     input.Mobile,
 			Email:        input.Email,
 			Password:     string(hashedPassword),
+			Token:        token,
+			Refresh_token: refreshtoken,
 			User_type:    "ADMIN",
 			Created_at:   time.Now(),
 			Updated_at:   time.Now(),
