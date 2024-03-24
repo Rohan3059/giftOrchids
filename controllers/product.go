@@ -3,13 +3,21 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
-	"path/filepath"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"github.com/kravi0/BizGrowth-backend/database"
 	"github.com/kravi0/BizGrowth-backend/models"
 	"github.com/kravi0/BizGrowth-backend/utils"
@@ -17,10 +25,69 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
+
+
 var ProductCollection *mongo.Collection = database.ProductData(database.Client, "Products")
 var EnquireCollection *mongo.Collection = database.ProductData(database.Client, "enquire")
 var RequirementMessageCollection *mongo.Collection = database.ProductData(database.Client,"RequirementMessage")
 
+
+var uploader *s3manager.Uploader
+
+
+
+func init() {
+	// Load environment variables from .env file
+	if err := godotenv.Load(); err != nil {
+		log.Fatalf("Error loading .env file: %v", err)
+	}
+
+	// Read AWS credentials from environment variables
+	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
+	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	region := os.Getenv("AWS_REGION")
+
+	// Create a new AWS session with the provided credentials and region
+	awsSession, err := session.NewSessionWithOptions(session.Options{
+		Config: aws.Config{
+			Region: aws.String(region),
+			Credentials: credentials.NewStaticCredentials(
+				accessKey,
+				secretKey,
+				"",
+			),
+		},
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	// Create an uploader instance using the AWS session
+	uploader = s3manager.NewUploader(awsSession)
+}
+
+
+
+func saveFile(fileReader io.Reader, fileHeader *multipart.FileHeader) (string, error) {
+	// Upload the file to S3 using the fileReader
+	
+	bucketName := os.Getenv("AWS_BUCKET_NAME")
+	
+	_, err := uploader.Upload(&s3manager.UploadInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(fileHeader.Filename),
+		Body:   fileReader,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	// Get the URL of the uploaded file
+	url := fmt.Sprintf("https://%s.s3.amazonaws.com/%s", bucketName, fileHeader.Filename)
+
+	return url, nil
+}
 
 func ProductViewerAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -31,7 +98,14 @@ func ProductViewerAdmin() gin.HandlerFunc {
 		// 	log.Println("error while binding")
 		// 	c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
 		// 	return
-		// }
+		// 
+		err := godotenv.Load()
+		if err != nil {
+			log.Fatal(err)
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
+			return
+		}
+
 		product.Product_ID = primitive.NewObjectID()
 		product.Product_Name = c.PostForm("product_name")
 		//product.SKU = c.PostForm("sku")
@@ -47,7 +121,7 @@ func ProductViewerAdmin() gin.HandlerFunc {
 			return
 		}
 
-		log.Println(strings.TrimSpace(c.PostForm("price")))
+		//	log.Println(strings.TrimSpace(c.PostForm("price")))
 		price := strings.TrimSpace(c.PostForm("price"))
 		if err != nil {
 			log.Println("error while parsing price")
@@ -66,18 +140,44 @@ func ProductViewerAdmin() gin.HandlerFunc {
 			return
 		}
 		files := form.File["files"]
+		fmt.Println("Fetched filesa:")
 		fmt.Println(files)
-		var fileString []string
+		//var fileString []string
+		cfg, err := config.LoadDefaultConfig(context.TODO())
+		fmt.Println("region", cfg.Region)
+		if err != nil {
+			log.Fatal(err)
+			log.Println("error while multipart")
+			c.String(http.StatusInternalServerError, "get form err: %s", err.Error())
+			return
+		}
+		//	client := s3.NewFromConfig(cfg)
+		//	uploader := manager.NewUploader(client)
+		var errors []string
+		var uploadedURLs []string
+		var resFileName []string
 		for _, file := range files {
-			filename := filepath.Base(file.Filename)
-			fileString = append(fileString, filename)
-			if err := c.SaveUploadedFile(file, filename); err != nil {
-				c.String(http.StatusBadRequest, "upload file err: %s", err.Error())
+			f, err := file.Open()
+			if err != nil {
+				log.Fatal(err)
+				log.Println("error while opening file")
+				c.String(http.StatusInternalServerError, "get form err: %s", err.Error())
 				return
 			}
+			uploadedURL, err := saveFile(f, file)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("Error saving file %s: %s", file.Filename, err.Error()))
+			} else {
+				uploadedURLs = append(uploadedURLs, uploadedURL)
+			}
+			if len(errors) > 0 {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": errors})
+			} else {
+				c.JSON(http.StatusOK, gin.H{"url": uploadedURLs})
+			}
 		}
-		fmt.Println(fileString)
-		product.Image = fileString
+		fmt.Println(resFileName)
+		product.Image = uploadedURLs
 
 		_, anyerr := ProductCollection.InsertOne(ctx, product)
 		if anyerr != nil {
@@ -88,8 +188,6 @@ func ProductViewerAdmin() gin.HandlerFunc {
 		c.JSON(http.StatusOK, "Successfully added our Product Admin!!")
 	}
 }
-
-
 
 // this will give detail of the particular product, product id is mendatory filed
 func GetProduct() gin.HandlerFunc {
