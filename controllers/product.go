@@ -15,7 +15,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/gabriel-vasile/mimetype"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/kravi0/BizGrowth-backend/database"
@@ -32,7 +34,12 @@ var EnquireCollection *mongo.Collection = database.ProductData(database.Client, 
 var RequirementMessageCollection *mongo.Collection = database.ProductData(database.Client,"RequirementMessage")
 
 
+
+
 var uploader *s3manager.Uploader
+var awsSession *session.Session
+
+
 
 
 
@@ -73,11 +80,18 @@ func saveFile(fileReader io.Reader, fileHeader *multipart.FileHeader) (string, e
 	// Upload the file to S3 using the fileReader
 	
 	bucketName := os.Getenv("AWS_BUCKET_NAME")
-	
+	mtype, error := mimetype.DetectReader(fileReader);
+	if error != nil {
+		return "", error
+	}
+
 	_, err := uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(fileHeader.Filename),
 		Body:   fileReader,
+		ACL:    aws.String("public-read"),
+		ContentType: aws.String(mtype.String()),
+
 	})
 	if err != nil {
 		return "", err
@@ -88,6 +102,77 @@ func saveFile(fileReader io.Reader, fileHeader *multipart.FileHeader) (string, e
 
 	return url, nil
 }
+
+func extractKeyFromURL(url string) string {
+	parts := strings.Split(url, "/")
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	return ""
+}
+
+func getPresignURL(s3Url string) (string, error) {
+	// Create an S3 service client using the provided session
+
+	if err := godotenv.Load(); err != nil {
+		log.Fatalf("Error loading .env file: %v", err)
+	}
+
+	// Read AWS credentials from environment variables
+	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
+	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	region := os.Getenv("AWS_REGION")
+
+	// Create a new AWS session with the provided credentials and region
+	awsSession, err := session.NewSessionWithOptions(session.Options{
+		Config: aws.Config{
+			Region: aws.String(region),
+			Credentials: credentials.NewStaticCredentials(
+				accessKey,
+				secretKey,
+				"",
+			),
+		},
+	})
+
+	if err != nil {
+		panic(err)
+	}
+	
+	if awsSession == nil {
+		fmt.Println("AWS session is nil")
+		return "", nil
+	}
+
+	s3client := s3.New(awsSession)
+
+	// Retrieve bucket name from environment variable
+	bucketName := os.Getenv("AWS_BUCKET_NAME")
+	if bucketName == "" {
+		fmt.Println("Bucket name is empty")
+		return "", nil
+	}
+
+	keyName := extractKeyFromURL(s3Url)
+	if keyName == "" {
+		return "", nil // Return nil error as keyName is empty
+	}
+
+	// Generate the pre-signed URL
+	req, _ := s3client.GetObjectRequest(&s3.GetObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(keyName),
+		ResponseContentType:  aws.String("image/jpeg"),
+	})
+	presignedURL, err := req.Presign(time.Hour * 24) // URL expires in 24 hours
+	if err != nil {
+		return "", err
+	}
+
+	return presignedURL, nil
+}
+
+
 
 func ProductViewerAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -280,12 +365,11 @@ func UpdateProduct() gin.HandlerFunc {
 // accept diff filter to get product
 func SearchProductByQuery() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var SearchProducts []models.Product
+		var searchProducts []models.Product
 		queryParam := c.Query("name")
 		filter := []primitive.M{}
 		if queryParam != "" {
 			filter = append(filter, primitive.M{"$regex": queryParam})
-
 		}
 		productCategory := c.Query("category")
 		if productCategory != "" {
@@ -307,29 +391,36 @@ func SearchProductByQuery() gin.HandlerFunc {
 		defer cancel()
 
 		cursor, err := ProductCollection.Find(ctx, finalFilter)
-
 		if err != nil {
-			c.IndentedJSON(404, "Something went wrong while fetching the data")
-			return
-		}
-
-		err = cursor.All(ctx, &SearchProducts)
-		if err != nil {
-			log.Println(err)
-			c.IndentedJSON(400, "Invalid")
+			c.IndentedJSON(http.StatusNotFound, "Something went wrong while fetching the data")
 			return
 		}
 		defer cursor.Close(ctx)
 
-		if err := cursor.Err(); err != nil {
+		if err := cursor.All(ctx, &searchProducts); err != nil {
 			log.Println(err)
-			c.IndentedJSON(400, "Invalid request")
+			c.IndentedJSON(http.StatusBadRequest, "Invalid")
 			return
 		}
-		c.IndentedJSON(200, SearchProducts)
 
+		// Iterate over each product and get pre-signed URLs for each image
+		for i := range searchProducts {
+			for j := range searchProducts[i].Image {
+				// Get pre-signed URL for the image
+				url, err := getPresignURL( searchProducts[i].Image[j])
+				if err != nil {
+					log.Println("Error generating pre-signed URL for image:", err)
+					continue
+				}
+				// Update the image URL in the product
+				searchProducts[i].Image[j]= url
+			}
+		}
+
+		c.IndentedJSON(http.StatusOK, searchProducts)
 	}
 }
+
 
 func ApproveProduct() gin.HandlerFunc {
 	return func(c *gin.Context) {

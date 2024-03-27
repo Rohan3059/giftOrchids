@@ -240,6 +240,88 @@ func LoadSeller() gin.HandlerFunc {
 	}
 }
 
+
+func ResetPassword() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		 var input struct {
+        MobileNo string `json:"mobileno" validate:"required"`
+        OTP          string `json:"otp" validate:"required"`
+    	Password  string `json:"password" validate:"required,min=6"`
+    }
+
+    // Bind JSON request body to input struct
+    if err := c.ShouldBindJSON(&input); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
+        return
+    }
+
+	
+	var seller models.Seller 
+
+	err := SellerCollection.FindOne(context.Background(), bson.M{"mobileno": input.MobileNo}).Decode(&seller)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"Error": "No Account is registered with this number"})
+		return
+	}
+
+	if(input.OTP != seller.OTP ){
+		c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid OTP"})
+		return
+	}
+
+     hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+		return 
+    }
+
+    filter := bson.M{"mobileno": input.MobileNo }
+    update := bson.M{"$set": bson.M{"password": string(hashedPassword)}}
+    _, err = SellerCollection.UpdateOne(context.Background(), filter, update)
+    if err != nil {
+    	 c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		 return ;
+    }
+
+    c.JSON(http.StatusOK, gin.H{"message": "Password updated successfully"})
+
+	}
+}
+
+
+
+func LoadUser() gin.HandlerFunc {
+	return func(c *gin.Context) {
+	userId, exists := c.Get("uid")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Seller ID not found in context"})
+		return
+	}
+
+	// Convert sellerID to ObjectID
+	userObjID, err := primitive.ObjectIDFromHex(userId.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Seller ID"})
+		return
+	}
+
+	// Query the database to get seller information
+	var user models.USer // Assuming Seller struct is defined in models package
+	err = SellerCollection.FindOne(context.Background(), bson.M{"_id": userObjID}).Decode(&user)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
+		return
+	}
+
+	
+	
+	c.JSON(http.StatusOK, gin.H{"user": user } )
+	}
+}
+
+
+
+
 func RegisterAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input struct {

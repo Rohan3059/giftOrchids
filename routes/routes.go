@@ -35,6 +35,8 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/registerSellerDetaills", controllers.SellerRegistration())
 	incomingRoutes.POST("/seller-login", controllers.Login())
 	
+	incomingRoutes.POST("/seller/reset-password", controllers.ResetPassword())
+	
 	incomingRoutes.POST("/validatesellerotp", controllers.ValidatePasswordOTP())
 	incomingRoutes.Use(middleware.UserAuthentication())
 	incomingRoutes.POST("/product-enquiry", controllers.EnquiryHandler())
