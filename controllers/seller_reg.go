@@ -47,7 +47,7 @@ func SellerRegistrationSendOTP() gin.HandlerFunc {
 			return
 		}
 		filter := primitive.M{"mobileno": contactNo}
-		count, err := SellerTmpCollection.CountDocuments(ctx, filter)
+		count, err := SellerCollection.CountDocuments(ctx, filter)
 		defer cancel()
 		if err != nil {
 			log.Panic(err)
