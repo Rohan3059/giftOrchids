@@ -37,7 +37,7 @@ var RequirementMessageCollection *mongo.Collection = database.ProductData(databa
 
 
 var uploader *s3manager.Uploader
-var awsSession *session.Session
+
 
 
 
@@ -89,7 +89,6 @@ func saveFile(fileReader io.Reader, fileHeader *multipart.FileHeader) (string, e
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(fileHeader.Filename),
 		Body:   fileReader,
-		ACL:    aws.String("public-read"),
 		ContentType: aws.String(mtype.String()),
 
 	})
@@ -225,11 +224,11 @@ func ProductViewerAdmin() gin.HandlerFunc {
 			return
 		}
 		files := form.File["files"]
-		fmt.Println("Fetched filesa:")
-		fmt.Println(files)
+		
 		//var fileString []string
 		cfg, err := config.LoadDefaultConfig(context.TODO())
-		fmt.Println("region", cfg.Region)
+		fmt.Print(cfg);
+	
 		if err != nil {
 			log.Fatal(err)
 			log.Println("error while multipart")

@@ -3,11 +3,8 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -34,7 +31,11 @@ var validate = validator.New()
 
 var SellerTmpCollection *mongo.Collection = database.ProductData(database.Client, "SellerTmp")
 
-func SetSellerOtpHandler() gin.HandlerFunc {
+
+/* seller registartion */
+
+
+func SellerRegistrationSendOTP() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -81,7 +82,7 @@ func SetSellerOtpHandler() gin.HandlerFunc {
 
 	}
 }
-func ValidateSellerOtpHandler() gin.HandlerFunc {
+func SellerRegistrationOtpVerification() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -166,28 +167,23 @@ func SellerRegistration() gin.HandlerFunc {
 			return
 		}
 		defer aadharFile.Close()
-		panFilename := filepath.Join("doc_uploads", panHeader.Filename)
-		aadharFilename := filepath.Join("doc_uploads", aadharHeader.Filename)
+		
+		
+		
 
-		if _, err := os.Stat("doc_uploads"); os.IsNotExist(err) {
-			os.Mkdir("doc_uploads", os.ModeDir)
-		}
+		panFileUrl ,err := saveFile(panFile, panHeader) ;
 
-		panDst, err := os.Create(panFilename)
 		if err != nil {
-			c.String(http.StatusInternalServerError, fmt.Sprintf("Error creating PAN file: %s", err.Error()))
+			c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving PAN file: %s", err.Error()))
 			return
 		}
-		defer panDst.Close()
-		io.Copy(panDst, panFile)
 
-		aadharDst, err := os.Create(aadharFilename)
+		aadharFileUrl ,err := saveFile(aadharFile, aadharHeader);
 		if err != nil {
-			c.String(http.StatusInternalServerError, fmt.Sprintf("Error creating Aadhar file: %s", err.Error()))
+			c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving Aadhar file: %s", err.Error()))
 			return
 		}
-		defer aadharDst.Close()
-		io.Copy(aadharDst, aadharFile)
+
 		seller.MobileNo = mobileno
 		seller.Created_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 		seller.Updated_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
@@ -198,8 +194,10 @@ func SellerRegistration() gin.HandlerFunc {
 		seller.CompanyDetail.PAN = PAN
 		seller.CompanyDetail.PermanentAddress = PermanentAddress
 		seller.Email = email
-		seller.CompanyDetail.AadharImage = aadharFilename
-		seller.CompanyDetail.PANImage = panFilename
+		
+		seller.CompanyDetail.AadharImage = aadharFileUrl
+		seller.CompanyDetail.PANImage = panFileUrl
+		
 		seller.ID = primitive.NewObjectID()
 		seller.Seller_ID = seller.ID.Hex()
 		token, refreshtoken, _ := generate.TokenGenerator(seller.Email, seller.MobileNo, seller.Company_Name, seller.Seller_ID)
@@ -261,8 +259,19 @@ func ApproveSeller() gin.HandlerFunc {
 	}
 }
 
+
+
+
+
+
+
+
+/* Login functions */
+
+
+
 // pass form data
-func Login() gin.HandlerFunc {
+func SendLoginOTP() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
@@ -277,7 +286,7 @@ func Login() gin.HandlerFunc {
 		err := SellerCollection.FindOne(ctx, bson.M{"mobileno": contactNo}).Decode(&founduser)
 		defer cancel()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": "email or password is incorrect"})
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "No user exists with this phone number"})
 			return
 		}
 		mobileNo := founduser.MobileNo
@@ -303,7 +312,7 @@ func Login() gin.HandlerFunc {
 }
 
 // need to pass mobile no OTP and password
-func ValidatePasswordOTP() gin.HandlerFunc {
+func LoginValidatePasswordOTP() gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
@@ -319,7 +328,7 @@ func ValidatePasswordOTP() gin.HandlerFunc {
 		err := SellerCollection.FindOne(ctx, bson.M{"mobileno": user.MobileNo}).Decode(&founduser)
 		defer cancel()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": "OTP or password is incorrect"})
+			c.JSON(http.StatusInternalServerError, gin.H{"Error":"No account exist with this mobile."})
 			return
 		}
 

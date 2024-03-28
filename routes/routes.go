@@ -28,18 +28,22 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/add-admin",controllers.RegisterAdmin())
 	
 	//incomingRoutes.GET("/getseller", controllers.GetSeller())
-	incomingRoutes.POST("/sendOTP", controllers.SetOtpHandler())
-	incomingRoutes.POST("/validate", controllers.ValidateOtpHandler())
-	incomingRoutes.POST("/sellerOTPRegistration", controllers.SetSellerOtpHandler())
-	incomingRoutes.POST("/validatesellerotpin", controllers.ValidateSellerOtpHandler())
-	incomingRoutes.POST("/registerSellerDetaills", controllers.SellerRegistration())
-	incomingRoutes.POST("/seller-login", controllers.Login())
-	
 	incomingRoutes.POST("/seller/reset-password", controllers.ResetPassword())
 	
-	incomingRoutes.POST("/validatesellerotp", controllers.ValidatePasswordOTP())
+	incomingRoutes.POST("/validatesellerotp", controllers.LoginValidatePasswordOTP())
+	
+	incomingRoutes.POST("/sendOTP", controllers.SetOtpHandler())
+	incomingRoutes.POST("/validate", controllers.ValidateOtpHandler())
+	incomingRoutes.POST("/sellerOTPRegistration", controllers.SellerRegistrationOtpVerification())
+	incomingRoutes.POST("/validatesellerotpin", controllers.SellerRegistrationOtpVerification())
+	incomingRoutes.POST("/registerSellerDetaills", controllers.SellerRegistration())
+	incomingRoutes.POST("/seller-login", controllers.SendLoginOTP())
+	
+	
+	
 	incomingRoutes.Use(middleware.UserAuthentication())
 	incomingRoutes.POST("/product-enquiry", controllers.EnquiryHandler())
+	incomingRoutes.GET("/get-enquiry", controllers.GetUserEnquiries())
 
 	
 	incomingRoutes.Use(middleware.Authentication())
