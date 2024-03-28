@@ -149,11 +149,7 @@ func SellerRegistration() gin.HandlerFunc {
 		email := c.PostForm("email")
 		password := HashPassword(c.PostForm("password"))
 	
-		err := c.Request.ParseMultipartForm(10 << 20)
-		if err != nil {
-			c.String(http.StatusBadRequest, fmt.Sprintf("Error parsing form: %s", err.Error()))
-			return
-		}
+	
 
 		form, err := c.MultipartForm()
 		if err != nil {
