@@ -34,7 +34,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	
 	incomingRoutes.POST("/sendOTP", controllers.SetOtpHandler())
 	incomingRoutes.POST("/validate", controllers.ValidateOtpHandler())
-	incomingRoutes.POST("/sellerOTPRegistration", controllers.SellerRegistrationOtpVerification())
+	incomingRoutes.POST("/sellerOTPRegistration", controllers.SellerRegistrationSendOTP())
 	incomingRoutes.POST("/validatesellerotpin", controllers.SellerRegistrationOtpVerification())
 	incomingRoutes.POST("/registerSellerDetaills", controllers.SellerRegistration())
 	incomingRoutes.POST("/seller-login", controllers.SendLoginOTP())
