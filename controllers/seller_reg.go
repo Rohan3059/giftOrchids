@@ -155,34 +155,43 @@ func SellerRegistration() gin.HandlerFunc {
 			return
 		}
 
-		panFile, panHeader, err := c.Request.FormFile("panFile")
+		form, err := c.MultipartForm()
 		if err != nil {
-			c.String(http.StatusBadRequest, fmt.Sprintf("Error retrieving PAN file: %s", err.Error()))
+			log.Println("error while multipart")
+			c.String(http.StatusBadRequest, "get form err: %s", err.Error())
 			return
 		}
-		defer panFile.Close()
-		aadharFile, aadharHeader, err := c.Request.FormFile("aadharFile")
+		panFile := form.File["panFile"]
+		aadharFile := form.File["aadharFile"]
+
+
+		panHeader,err := panFile[0].Open();
 		if err != nil {
-			c.String(http.StatusBadRequest, fmt.Sprintf("Error retrieving Aadhar file: %s", err.Error()))
+			c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening PAN file: %s", err.Error()))
 			return
 		}
-		defer aadharFile.Close()
-		
-		
-		
+		aadharHeader,err := aadharFile[0].Open();
+		if err != nil {
+			c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening Aadhar file: %s", err.Error()))
+			return
+		}
 
-		panFileUrl ,err := saveFile(panFile, panHeader) ;
 
+
+		panFileUrl,err := saveFile(panHeader,panFile[0]);
 		if err != nil {
 			c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving PAN file: %s", err.Error()))
 			return
 		}
-
-		aadharFileUrl ,err := saveFile(aadharFile, aadharHeader);
+		aadharFileUrl,err := saveFile(aadharHeader,aadharFile[0]);
 		if err != nil {
 			c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving Aadhar file: %s", err.Error()))
 			return
 		}
+
+		
+		defer panHeader.Close()
+		defer aadharHeader.Close()
 
 		seller.MobileNo = mobileno
 		seller.Created_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
