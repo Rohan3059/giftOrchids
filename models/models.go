@@ -74,7 +74,8 @@ type CompanyDetail struct {
 	PAN              string `json:"pan" validate:"required"`
 	PermanentAddress string `json:"permanenetaddress" validate:"required"`
 
-	Photo       string `json:"owner_photo"`
+	ProfilePicture   string `json:"profile_picture"`
+
 	AadharImage string `json:"aadhar_image" validate:"required"`
 	PANImage    string `json:"pan_image" validate:"required"`
 }

@@ -159,6 +159,14 @@ func SellerRegistration() gin.HandlerFunc {
 		}
 		panFile := form.File["panFile"]
 		aadharFile := form.File["aadharFile"]
+		profile_picture := form.File["profile_picture"]
+
+		// check if files are present
+
+		if len(panFile) == 0 || len(aadharFile) == 0   {
+			c.String(http.StatusBadRequest, "Please upload all required documents")
+			return
+		}
 
 
 		panHeader,err := panFile[0].Open();
@@ -169,6 +177,12 @@ func SellerRegistration() gin.HandlerFunc {
 		aadharHeader,err := aadharFile[0].Open();
 		if err != nil {
 			c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening Aadhar file: %s", err.Error()))
+			return
+		}
+
+		profilePicture,err := profile_picture[0].Open();
+		if err != nil {
+			c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening profile picture: %s", err.Error()))
 			return
 		}
 
@@ -185,9 +199,18 @@ func SellerRegistration() gin.HandlerFunc {
 			return
 		}
 
+
+		profilePictureUrl,err := saveFile(profilePicture,profile_picture[0]);
+		if err != nil {
+			c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving profile picture: %s", err.Error()))
+			return
+		}
+
 		
 		defer panHeader.Close()
 		defer aadharHeader.Close()
+
+		defer profilePicture.Close()
 
 		seller.MobileNo = mobileno
 		seller.Created_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
@@ -198,6 +221,7 @@ func SellerRegistration() gin.HandlerFunc {
 		seller.CompanyDetail.AadharNumber = AadharNumber
 		seller.CompanyDetail.PAN = PAN
 		seller.CompanyDetail.PermanentAddress = PermanentAddress
+		seller.CompanyDetail.ProfilePicture = profilePictureUrl
 		seller.Email = email
 		
 		seller.CompanyDetail.AadharImage = aadharFileUrl

@@ -230,8 +230,11 @@ func LoadSeller() gin.HandlerFunc {
 		return
 	}
 
-	// Check if the seller is approved
-	fmt.Print("seller approved", seller.Approved)
+
+	
+	fmt.Println(seller.CompanyDetail)
+
+
 	if !seller.Approved {
     c.JSON(http.StatusOK, gin.H{"message": "Seller is not approved", "isApproved": false, "seller": seller })
     return

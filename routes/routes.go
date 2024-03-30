@@ -57,6 +57,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.GET("/seller/info", controllers.LoadSeller())
 	incomingRoutes.DELETE("/admin/delete-product", controllers.DeleteProduct())
 	incomingRoutes.POST("/seller/update-product", controllers.AddProductReferenceHandler())
+	incomingRoutes.POST("/seller/update-profilepicture",controllers.SellerUpdateProfilePictureHandler())
 
 	//incomingRoutes.GET("/getcategory", controllers.GetCategory())
 }

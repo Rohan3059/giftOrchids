@@ -193,3 +193,76 @@ func AddProductReferenceHandler() gin.HandlerFunc {
     }
 }
 
+
+func SellerUpdateProfilePictureHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+			
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			
+			sellerID, exists := c.Get("uid")
+		if !exists {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Seller ID not found in context"})
+			return
+		}
+
+		// Convert sellerID to ObjectID
+		sellerObjID, err := primitive.ObjectIDFromHex(sellerID.(string))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Seller ID"})
+			return
+		}
+
+		// Query the database to get seller information
+		var seller models.Seller // Assuming Seller struct is defined in models package
+		err = SellerCollection.FindOne(context.Background(), bson.M{"_id": sellerObjID}).Decode(&seller)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
+			return
+		}
+
+			
+	
+
+		form, err := c.MultipartForm()
+		if err != nil {
+			log.Println("error while multipart")
+			c.String(http.StatusBadRequest, "get form err: %s", err.Error())
+			return
+		}
+		profile_picture := form.File["profile_picture"]
+
+		// check if files are present
+		if len(profile_picture) == 0 {
+			c.String(http.StatusBadRequest, "Please upload all required documents")
+			return
+		}
+
+		profilePicture,err := profile_picture[0].Open();
+		if err != nil {
+			c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening profile picture: %s", err.Error()))
+			return
+		}
+
+		profilePictureUrl,err := saveFile(profilePicture,profile_picture[0]);
+		if err != nil {
+			c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving profile picture: %s", err.Error()))
+			return
+		}
+		
+
+
+
+		filter := bson.D{primitive.E{Key: "_id", Value: sellerObjID}}
+		update := bson.M{"$set": bson.M{"companydetail.profile_picture": profilePictureUrl}} 
+		_, err = SellerCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			c.Header("content-type", "application/json")
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
+			return
+		}
+		c.Header("content-type", "application/json")
+		c.JSON(http.StatusOK, gin.H{"success": "Profile Picture updated successfully"})
+
+	}
+}
