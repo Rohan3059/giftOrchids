@@ -197,19 +197,19 @@ func AddProductReferenceHandler() gin.HandlerFunc {
 func SellerUpdateProfilePictureHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 			
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 			
-			sellerID, exists := c.Get("uid")
+		sellerID, exists := c.Get("uid")
 		if !exists {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Seller ID not found in context"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Seller ID not found in context"})
 			return
 		}
 
 		// Convert sellerID to ObjectID
 		sellerObjID, err := primitive.ObjectIDFromHex(sellerID.(string))
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Seller ID"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid Seller ID"})
 			return
 		}
 
@@ -217,7 +217,7 @@ func SellerUpdateProfilePictureHandler() gin.HandlerFunc {
 		var seller models.Seller // Assuming Seller struct is defined in models package
 		err = SellerCollection.FindOne(context.Background(), bson.M{"_id": sellerObjID}).Decode(&seller)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
+			c.JSON(http.StatusNotFound, gin.H{"Error": "Seller not found"})
 			return
 		}
 

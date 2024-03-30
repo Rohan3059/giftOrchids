@@ -240,11 +240,6 @@ func LoadSeller() gin.HandlerFunc {
 	}
 	
 
-
-	
-	
-
-
 	if !seller.Approved {
     c.JSON(http.StatusOK, gin.H{"message": "Seller is not approved", "isApproved": false, "seller": seller })
     return
