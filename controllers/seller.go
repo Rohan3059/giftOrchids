@@ -249,12 +249,11 @@ func SellerUpdateProfilePictureHandler() gin.HandlerFunc {
 			c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving profile picture: %s", err.Error()))
 			return
 		}
+		fmt.Println(profilePictureUrl)
 		
 
-
-
-		filter := bson.D{primitive.E{Key: "_id", Value: sellerObjID}}
-		update := bson.M{"$set": bson.M{"companydetail.profile_picture": profilePictureUrl}} 
+		filter := bson.M{"_id": sellerObjID}
+		update := bson.M{"$set": bson.M{"companydetail.profilepicture": profilePictureUrl}} 
 		_, err = SellerCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			c.Header("content-type", "application/json")

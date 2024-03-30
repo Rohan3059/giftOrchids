@@ -63,21 +63,23 @@ type Seller struct {
 	IsArchived      bool               `json:"archived"`
 
 }
-type SellerTmp struct {
-	ID       primitive.ObjectID `bson:"_id"`
-	MobileNo string             `json:"mobileno"`
-	OTP      string             `json:"otp"`
-}
+
 type CompanyDetail struct {
 	NameOfOwner      string `json:"nameofowner" validate:"required"`
 	AadharNumber     string `json:"aadharnumber" validate:"required"`
 	PAN              string `json:"pan" validate:"required"`
 	PermanentAddress string `json:"permanenetaddress" validate:"required"`
 
-	ProfilePicture   string `json:"profile_picture"`
+	ProfilePicture   string `json:"profilepicture"`
 
 	AadharImage string `json:"aadhar_image" validate:"required"`
 	PANImage    string `json:"pan_image" validate:"required"`
+}
+
+type SellerTmp struct {
+	ID       primitive.ObjectID `bson:"_id"`
+	MobileNo string             `json:"mobileno"`
+	OTP      string             `json:"otp"`
 }
 
 type Address struct {
