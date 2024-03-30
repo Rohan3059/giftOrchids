@@ -230,9 +230,19 @@ func LoadSeller() gin.HandlerFunc {
 		return
 	}
 
+	if(seller.CompanyDetail.ProfilePicture!=""){
+				profilePictureUrl,err := getPresignURL(seller.CompanyDetail.ProfilePicture)
+		if err != nil {
+			//
+		}
+
+		seller.CompanyDetail.ProfilePicture = profilePictureUrl
+	}
+	
+
 
 	
-	fmt.Println(seller.CompanyDetail)
+	
 
 
 	if !seller.Approved {
