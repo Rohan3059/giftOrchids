@@ -25,6 +25,8 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/post-requirement",controllers.CreateRequirementMessage())
 	incomingRoutes.GET("/get-productReference",controllers.FetchProductsAndReferencesHandler())
 	incomingRoutes.GET("/product-reference", controllers.GetProductReferenceHandler())
+	incomingRoutes.GET("/search-sgguestions", controllers.SuggestionsHandler())
+	incomingRoutes.GET("/search-product", controllers.SearchProduct())
 	incomingRoutes.POST("/add-admin",controllers.RegisterAdmin())
 	
 	//incomingRoutes.GET("/getseller", controllers.GetSeller())

@@ -629,6 +629,118 @@ func GetProductReferenceHandler() gin.HandlerFunc {
 
 
 
+func getSuggestions(query string) ([]string, error) {
+	// Simulated database or API call to fetch products and categories
+	
+	productsCursor, err := ProductCollection.Find(context.Background(), bson.M{})
+	if err != nil {
+		return nil, err
+	}
+
+
+	var products []models.Product
+	if err = productsCursor.All(context.Background(), &products); err != nil {
+		return nil, err
+	}
+
+
+
+
+
+	categoriesCusror, err := CategoriesCollection.Find(context.Background(), bson.M{})
+	if err != nil {
+		return nil, err
+	}
+
+
+	var categories []models.Categories
+	if err = categoriesCusror.All(context.Background(), &categories); err != nil {
+		return nil, err
+	}
+
+	var suggestions []string
+
+	// Retrieve product suggestions
+	for _, product := range products {
+		if strings.Contains(strings.ToLower(product.Product_Name), strings.ToLower(query)) {
+			suggestions = append(suggestions, product.Product_Name)
+		}
+	
+	}
+
+	// Retrieve category suggestions
+	for _, category := range categories {
+		if strings.Contains(strings.ToLower(category.Category), strings.ToLower(query)) {
+			suggestions = append(suggestions, category.Category)
+		}
+	}
+
+	return suggestions, nil
+}
+
+func SuggestionsHandler() gin.HandlerFunc  {
+	return func(c *gin.Context) {
+		query := c.Query("query")
+		suggestions, err := getSuggestions(query)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+			return
+		}
+		if len(suggestions) > 10 {
+        suggestions = suggestions[:10]
+    }
+
+		c.JSON(http.StatusOK, suggestions)
+	}	
+}
+
+
+//search product
+
+func SearchProduct() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx := context.Background()
+
+		query := c.Query("query")
+
+		filter := bson.M{
+			"$or": []bson.M{
+				{"product_name": bson.M{"$regex": query, "$options": "i"}},
+				
+				{"category": bson.M{"$regex": query, "$options": "i"}},
+			},
+		}
+
+		cursor, err := ProductCollection.Find(ctx, filter)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		defer cursor.Close(ctx)
+
+		var results []models.Product
+
+		if err := cursor.All(ctx, &results); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, results)
+	
+	}
+}
+
+
+
+
+
+
+
+
+
+
 func checkAdmin(ctx context.Context, c *gin.Context) bool {
 
 	email, existse := c.Get("email")
