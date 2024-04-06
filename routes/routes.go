@@ -17,6 +17,8 @@ func UserRoutes(incomingRoutes *gin.Engine) {
     config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
     config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization", "Token","token"} // Add "Token" header
     incomingRoutes.Use(cors.New(config))
+	incomingRoutes.GET("/search-suggestions", controllers.SuggestionsHandler())
+	incomingRoutes.GET("/search-product", controllers.SearchProduct())
 	incomingRoutes.GET("/getcategory", controllers.GetCategory())
 	incomingRoutes.PUT("/updatecategory", controllers.EditCategory())
 	incomingRoutes.GET("/getproduct", controllers.GetProduct())
@@ -25,8 +27,6 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/post-requirement",controllers.CreateRequirementMessage())
 	incomingRoutes.GET("/get-productReference",controllers.FetchProductsAndReferencesHandler())
 	incomingRoutes.GET("/product-reference", controllers.GetProductReferenceHandler())
-	incomingRoutes.GET("/search-sgguestions", controllers.SuggestionsHandler())
-	incomingRoutes.GET("/search-product", controllers.SearchProduct())
 	incomingRoutes.POST("/add-admin",controllers.RegisterAdmin())
 	
 	//incomingRoutes.GET("/getseller", controllers.GetSeller())

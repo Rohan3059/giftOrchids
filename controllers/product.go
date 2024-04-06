@@ -299,6 +299,22 @@ func GetProduct() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, utils.ErrorCantFindProduct)
 			return
 		}
+
+
+		if product.Image != nil {
+			for i, url := range product.Image {
+				imageUrl, err := getPresignURL(url)
+				if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+				return
+			}
+			product.Image[i] = imageUrl
+			}
+
+			
+		}
+
+
 		c.JSON(http.StatusOK, product)
 	}
 
