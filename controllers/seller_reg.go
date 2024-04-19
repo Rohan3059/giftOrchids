@@ -147,48 +147,41 @@ func SellerEmailUpdate() gin.HandlerFunc {
 		password := HashPassword(c.PostForm("password"))
 		
 		if mobileno == "" {
-			c.Header("content-type", "application/json")
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "Phone number can't be empty"})
-			c.Abort()
-			return
+			return ;
 		}
 		if email == "" {
-			c.Header("content-type", "application/json")
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "Email can't be empty"})
-			c.Abort()
 			return
 		}
 		if password == "" {
-			c.Header("content-type", "application/json")
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "Password can't be empty"})
-			c.Abort()
 			return
 		}
 
 		if mobileno == "" {
-			c.Header("content-type", "application/json")
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "Phone number can't be empty"})
-			c.Abort()
 			return
 		}
 
-		err := SellerCollection.FindOne(ctx, bson.M{"mobileno": mobileno})
+		err := SellerCollection.FindOne(ctx, bson.M{"mobileno": mobileno}).Decode(&seller)
+		
 		if err == nil{
-			c.Header("content-type", "application/json")
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "User already exists with this phone number"})
-			c.Abort()
+			c.JSON(http.StatusBadRequest, gin.H{"Error": " User already exists with this phone number"})
 			return
 		}
 
-		err = SellerCollection.FindOne(ctx, bson.M{"email": email})
+		err = SellerCollection.FindOne(ctx, bson.M{"email": email}).Decode(&seller)
 		if err == nil{
-			c.Header("content-type", "application/json")
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "User already exists with this email"})
-			c.Abort()
 			return
 		}
+
+
+
 
 		seller.ID = primitive.NewObjectID()
+		seller.Seller_ID = seller.ID.String()
 		seller.MobileNo = mobileno
 		seller.Email = email
 		seller.Password = HashPassword(password)
