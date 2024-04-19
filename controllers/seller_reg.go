@@ -139,30 +139,21 @@ func SellerRegistrationOtpVerification() gin.HandlerFunc {
 
 func SellerEmailUpdate() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		var ctx, cancel = context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
+		//log current time 
+		currentTime := time.Now()
+		fmt.Println("Current Time: ", currentTime)
 		var seller models.Seller
 		mobileno := c.PostForm("mobileno")
 		email := c.PostForm("email")
 		password := HashPassword(c.PostForm("password"))
 		
-		if mobileno == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "Phone number can't be empty"})
+		if mobileno == "" || email == "" || password == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "All fields are required"})
 			return ;
 		}
-		if email == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "Email can't be empty"})
-			return
-		}
-		if password == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "Password can't be empty"})
-			return
-		}
-
-		if mobileno == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "Phone number can't be empty"})
-			return
-		}
+	
 
 		err := SellerCollection.FindOne(ctx, bson.M{"mobileno": mobileno}).Decode(&seller)
 		
@@ -177,9 +168,6 @@ func SellerEmailUpdate() gin.HandlerFunc {
 			return
 		}
 
-
-
-
 		seller.ID = primitive.NewObjectID()
 		seller.Seller_ID = seller.ID.String()
 		seller.MobileNo = mobileno
@@ -190,11 +178,19 @@ func SellerEmailUpdate() gin.HandlerFunc {
 		
 
 		_,inserterr := SellerCollection.InsertOne(ctx, seller)
+			finalTime := time.Now()
+		fmt.Println("Current Time: ", currentTime)
+
+		//total time taken
+		fmt.Println("Total Time Taken: ", finalTime.Sub(currentTime))
 		if inserterr != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": inserterr.Error()})
 			return
 		}
 		
+		//log current time
+	
+
 		
 		c.JSON(http.StatusOK, gin.H{"message": "Details updated sucessfully"})
 	}
