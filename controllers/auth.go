@@ -302,7 +302,7 @@ func LoadUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 	userId, exists := c.Get("uid")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Seller ID not found in context"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found in context"})
 		return
 	}
 

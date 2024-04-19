@@ -13,13 +13,62 @@ type Product struct {
 	Image            []string           `json:"image" validate:"required"`
 	Discription      string             `json:"discription" validate:"required"`
 	Category         string             `json:"category" validate:"required"`
-	Brand            string             `json:"brand" validate:"required"`
-	Color            []string           `json:"color"`
 	SKU              string             `json:"sku" validate:"required"`
 	Featured         bool               `json:"featured"`
 	Approved         bool               `json:"approved"`
 	SellerRegistered []string           `json:"sellerid"`
-	ProductReference []ProductReference `json:"productReference"`
+	Attributes       []AttributeValue    `json:"attributes"`
+	PriceRange       []ProductPriceRange `json:"pricerange"`
+	Variant          []ProductVariant    `json:"variant"`
+	Reviews          []primitive.ObjectID ` bson:"reviews" json:"reviews" `
+	
+}
+
+type AttributeType struct {
+	ID primitive.ObjectID `bson:"_id" json:"_id"`
+	Attribute_Name string `bson:"attribute_name" json:"attribute_name"`
+	Attribute_Code string `bson:"attribute_code" json:"attribute_code"`
+	Options []string `bson:"options" json:"options"`
+	
+}
+type AttributeValue struct {
+	
+	AttributeType primitive.ObjectID `bson:"attribute_type" json:"attribute_type"`
+	Value []string `bson:"attribute_value" json:"attribute_value"`
+	
+}
+
+type ProductVariant struct {
+
+	Attribute []AttributeValue `bson:"attribute" json:"attribute"`
+	
+	
+}
+
+type ProductPriceRange struct {
+
+	MinQuantity int              `bson:"minQuantity" json:"minQuantity"`
+	MaxQuantity int              `bson:"maxQuantity" json:"maxQuantity"`
+	Price       string             `bson:"price"`
+}
+
+type Reviews struct {
+	Id primitive.ObjectID `bson:"_id" json:"_id"`
+	ProductId primitive.ObjectID `bson:"product_id" json:"product_id"`
+	ReviewsDetails ReviewsDetails `bson:"reviews_details" json:"reviews_details"`
+	UserId primitive.ObjectID `bson:"user_id" json:"user_id"`
+	Status string `bson:"status" json:"status"` // approved or pending
+	CreatedAt time.Time `bson:"created_at" json:"created_at"`
+	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
+	Approved bool `bson:"approved" json:"approved"`
+	Archived bool `bson:"archived" json:"archived"`
+	
+}
+
+type ReviewsDetails struct {
+	ReviewTitle string `bson:"review_title" json:"review_title"`
+	ReviewText string `bson:"review_text" json:"review_text"`
+	ReviewRating int `bson:"review_rating" json:"review_rating"`
 }
 
 type ProductReference struct {
@@ -39,9 +88,27 @@ type ProductReference struct {
     
 }
 
+
+
+type Units struct {
+	ID primitive.ObjectID `bson:"_id" json:"_id"`
+	Unit_Name string `bson:"unit_name" json:"unit_name"`
+	Unit_Code string `bson:"unit_code" json:"unit_code"`
+	Value []string `bson:"value" json:"value"`
+}
+
+
+
+
+
+
+
 type Categories struct {
 	Category_ID primitive.ObjectID `bson:"_id"`
 	Category    string             `json:"category" bson:"category"`
+	Category_image string             `json:"category_image" bson:"category_image"`
+
+	Parent_Category primitive.ObjectID    `json:"parent_category" bson:"parent_category"`
 }
 
 type Seller struct {
@@ -66,6 +133,17 @@ type Seller struct {
 
 type CompanyDetail struct {
 	NameOfOwner      string `json:"nameofowner" validate:"required"`
+	BusinessType     string `json:"businesstype" validate:"required"`
+	YearEstablished string `json:"yearestablished" validate:"required"`
+	CompanyOrigin    string `json:"companyorigin" validate:"required"`
+	
+	GSTINORCIN            string `json:"gstinorcin"`
+	BusinessEntity        string `json:"businessentity"`
+	NoOfEmployee          string `json:"noofemployee"`
+	HaveBusinessLicenses bool `json:"havebusinesslicenses"`
+	BusinessLicenses     []BusinessLicense `json:"businesslicenses"`
+	HaveExportPermission bool `json:"haveexportpermission"`
+	ExportPermission     []BusinessLicense `json:"exportpermission"`
 	AadharNumber     string `json:"aadharnumber" validate:"required"`
 	PAN              string `json:"pan" validate:"required"`
 	PermanentAddress string `json:"permanenetaddress" validate:"required"`
@@ -74,6 +152,14 @@ type CompanyDetail struct {
 
 	AadharImage string `json:"aadhar_image" validate:"required"`
 	PANImage    string `json:"pan_image" validate:"required"`
+}
+
+type BusinessLicense struct {
+	LicenseName string `json:"licensename"`
+	LicenseValue string `json:"licensevalue"`
+	IssuedDate string `json:" issueddate"`
+	LicenseFile string `json:"licensefile"`
+
 }
 
 type SellerTmp struct {

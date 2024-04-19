@@ -20,6 +20,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.GET("/search-suggestions", controllers.SuggestionsHandler())
 	incomingRoutes.GET("/search-product", controllers.SearchProduct())
 	incomingRoutes.GET("/getcategory", controllers.GetCategory())
+	incomingRoutes.GET("/category",controllers.GetSingleCategory())
 	incomingRoutes.PUT("/updatecategory", controllers.EditCategory())
 	incomingRoutes.GET("/getproduct", controllers.GetProduct())
 	incomingRoutes.GET("/product", controllers.SearchProductByQuery())
@@ -27,6 +28,10 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/post-requirement",controllers.CreateRequirementMessage())
 	incomingRoutes.GET("/get-productReference",controllers.FetchProductsAndReferencesHandler())
 	incomingRoutes.GET("/product-reference", controllers.GetProductReferenceHandler())
+	
+	incomingRoutes.GET("/product-reviews",controllers.GetProductReviews())
+	incomingRoutes.GET("/approved-product-reviews",controllers.GetProductApprovedReviews())
+	
 	incomingRoutes.POST("/add-admin",controllers.RegisterAdmin())
 	
 	//incomingRoutes.GET("/getseller", controllers.GetSeller())
@@ -38,7 +43,9 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/validate", controllers.ValidateOtpHandler())
 	incomingRoutes.POST("/sellerOTPRegistration", controllers.SellerRegistrationSendOTP())
 	incomingRoutes.POST("/validatesellerotpin", controllers.SellerRegistrationOtpVerification())
-	incomingRoutes.POST("/registerSellerDetaills", controllers.SellerRegistration())
+	incomingRoutes.POST("/seller/detailsUpdate", controllers.SellerRegistration())
+	incomingRoutes.POST("/seller/registration",controllers.SellerEmailUpdate())
+	incomingRoutes.POST("/seller/licenseDetailsUpdate",controllers.SellerLicenseUpdate())
 	incomingRoutes.POST("/seller-login", controllers.SendLoginOTP())
 	
 	
@@ -46,6 +53,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.Use(middleware.UserAuthentication())
 	incomingRoutes.POST("/product-enquiry", controllers.EnquiryHandler())
 	incomingRoutes.GET("/get-enquiry", controllers.GetUserEnquiries())
+	incomingRoutes.POST("/post-review",controllers.AddReviewHandler())
 
 	
 	incomingRoutes.Use(middleware.Authentication())
@@ -60,6 +68,8 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.DELETE("/admin/delete-product", controllers.DeleteProduct())
 	incomingRoutes.POST("/seller/update-product", controllers.AddProductReferenceHandler())
 	incomingRoutes.POST("/seller/update-profilepicture",controllers.SellerUpdateProfilePictureHandler())
+	incomingRoutes.POST("/admin/approve-review", controllers.ApproveReview())
+	incomingRoutes.GET("/admin/all-reviews",controllers.GetReviews())
 
 	//incomingRoutes.GET("/getcategory", controllers.GetCategory())
 }

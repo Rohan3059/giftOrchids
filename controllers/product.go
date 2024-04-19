@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -32,7 +33,7 @@ import (
 var ProductCollection *mongo.Collection = database.ProductData(database.Client, "Products")
 var EnquireCollection *mongo.Collection = database.ProductData(database.Client, "enquire")
 var RequirementMessageCollection *mongo.Collection = database.ProductData(database.Client,"RequirementMessage")
-
+var ReviewsCollection *mongo.Collection = database.ProductData(database.Client, "Reviews")
 
 
 
@@ -177,12 +178,9 @@ func ProductViewerAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		var product models.Product
+		
 		defer cancel()
-		// if err := c.BindJSON(&product); err != nil {
-		// 	log.Println("error while binding")
-		// 	c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
-		// 	return
-		// 
+		
 		err := godotenv.Load()
 		if err != nil {
 			log.Fatal(err)
@@ -192,8 +190,22 @@ func ProductViewerAdmin() gin.HandlerFunc {
 
 		product.Product_ID = primitive.NewObjectID()
 		product.Product_Name = c.PostForm("product_name")
-		//product.SKU = c.PostForm("sku")
-		count, err := ProductCollection.CountDocuments(ctx, primitive.M{"product_name": product.Product_Name})
+
+		product.SKU = c.PostForm("sku")
+		attributesList := c.PostForm("attributes")
+		
+
+		var attributes []models.AttributeValue
+		if err := json.Unmarshal([]byte(attributesList), &attributes); err != nil {
+			log.Println(err)
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
+			return
+		}
+
+		product.Attributes = attributes
+
+		
+		count, err := ProductCollection.CountDocuments(ctx, primitive.M{"sku": product.SKU})
 
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
@@ -205,7 +217,7 @@ func ProductViewerAdmin() gin.HandlerFunc {
 			return
 		}
 
-		//	log.Println(strings.TrimSpace(c.PostForm("price")))
+		
 		price := strings.TrimSpace(c.PostForm("price"))
 		if err != nil {
 			log.Println("error while parsing price")
@@ -216,7 +228,7 @@ func ProductViewerAdmin() gin.HandlerFunc {
 
 		product.Discription = c.PostForm("discription")
 		product.Category = c.PostForm("category")
-		//handling file
+		
 		form, err := c.MultipartForm()
 		if err != nil {
 			log.Println("error while multipart")
@@ -750,8 +762,404 @@ func SearchProduct() gin.HandlerFunc {
 
 
 
+func AddReviewHandler()gin.HandlerFunc { return func(c *gin.Context){
+	// Parse request body to get review details
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 
+	var review models.Reviews
+	if err := c.ShouldBindJSON(&review); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userId,exist := c.Get("uid")
+	if !exist {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID not found"})
+		return
+	}
+	
+	oid, err := primitive.ObjectIDFromHex(userId.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+	review.UserId = oid
+	//not null userId 
+	if review.UserId.Hex() == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": ""})
+		return
+	}
+
+	
+	if(review.ReviewsDetails.ReviewRating > 5 || review.ReviewsDetails.ReviewRating < 1) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Rating must be between 1 and 5"})
+		return
+	}
+
+	if(review.ReviewsDetails.ReviewText == "" || review.ReviewsDetails.ReviewTitle == "") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Review text and title are required"})
+		return
+	}
+
+	
+
+
+	// Check if product exists
+	var product models.Product
+	productObjID, err := primitive.ObjectIDFromHex(review.ProductId.Hex())
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
+	filter := bson.M{"_id": productObjID}
+	err = ProductCollection.FindOne(ctx, filter).Decode(&product)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		return
+	}
+
+
+	// Check if user has already reviewed the product
+	filter = bson.M{"product_id": productObjID, "user_id": review.UserId}
+	count, err := ReviewsCollection.CountDocuments(ctx, filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check if user has already reviewed the product"})
+		return
+	}
+	if count > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "You have already reviewed this product"})
+		return
+	}
+
+	review.Id = primitive.NewObjectID()
+	review.CreatedAt = time.Now()
+	review.UpdatedAt = time.Now()
+
+	_, errs := ReviewsCollection.InsertOne(ctx, review)
+	if errs != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add review"})
+		return
+	}
+
+	// Update product with new review ID
+	// Append new review ID to existing array of review IDs in Product collection
+	update := bson.M{"$push": bson.M{"reviews": review.Id}}
+	_, err = ProductCollection.UpdateOne(ctx, bson.M{"_id": review.ProductId}, update)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product with review ID"})
+		return
+	}
+
+
+	// Return success response
+	c.JSON(http.StatusOK, gin.H{"message": "Thanks for your review!"})
+}
+}
+
+func ApproveReview() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if !checkAdmin( ctx,c){
+
+			c.JSON(http.StatusForbidden, gin.H{"Error": "You're not authorized to approve reviews"})
+			return
+
+		}		
+
+		var review models.Reviews
+		if err := c.ShouldBindJSON(&review); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		if review.Id.Hex() == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Review ID is required"})
+			return
+		}
+
+
+		filter := bson.M{"_id": review.Id}
+		update := bson.M{"$set": bson.M{"approved": true}}
+		_, err := ReviewsCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to approve review"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Review approved successfully"})
+
+
+	}
+}
+
+
+
+
+func GetProductApprovedReviews() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+        defer cancel()
+
+        var productId = c.Query("product_id")
+        if productId == "" {
+            c.JSON(http.StatusBadRequest, gin.H{"Error": "Product ID is required"})
+            return
+        }
+
+     
+        var product models.Product
+        productObjID, err := primitive.ObjectIDFromHex(productId)
+        if err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+            return
+        }
+        filter := bson.M{"_id": productObjID}
+        err = ProductCollection.FindOne(ctx, filter).Decode(&product)
+        if err != nil {
+            c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+            return
+        }
+
+        
+        pipeline := []bson.M{
+            {
+                "$match": bson.M{"product_id": productObjID, "approved": true},
+            },
+            {
+                "$lookup": bson.M{
+                    "from":         "User",
+                    "localField":   "user_id",
+                    "foreignField": "_id",
+                    "as":           "user",
+                },
+            },
+            {
+                "$unwind": bson.M{
+                    "path": "$user",
+                    "preserveNullAndEmptyArrays": true,
+                },
+            },
+			 {
+        "$project": bson.M{
+			"_id" : 1,
+			"product_id" : 1,
+			"reviews_details":1,
+			"approved" : 1,
+			"archived":1,
+			"created_at":1,
+			
+			"user" : bson.M{
+            "_id":    "$user._id",
+            "name":   "$user.username",
+            "mobileno":  "$user.mobileno",
+            
+        },
+		},
+	
+			
+        },
+	}
+
+        //get reviews with product_id 
+        cursor, err := ReviewsCollection.Aggregate(ctx, pipeline)
+        if err != nil {
+            fmt.Print(err)
+            c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to find reviews"})
+            return
+        }
+        defer cursor.Close(ctx)
+
+        var result []bson.M
+        if err := cursor.All(ctx, &result); err != nil {
+            fmt.Print(err)
+            c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to get reviews"})
+            return
+        }
+
+        // Debugging: Print the type and content of result
+        fmt.Printf("Type of result: %T\n", result)
+        fmt.Println("Content of result:")
+        for _, doc := range result {
+            fmt.Println(doc)
+        }
+
+        c.JSON(http.StatusOK, result)
+    }
+}
+
+
+
+
+
+func GetProductReviews() gin.HandlerFunc {
+	  return func(c *gin.Context) {
+        ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+        defer cancel()
+
+        var productId = c.Query("product_id")
+        if productId == "" {
+            c.JSON(http.StatusBadRequest, gin.H{"Error": "Product ID is required"})
+            return
+        }
+
+     
+        var product models.Product
+        productObjID, err := primitive.ObjectIDFromHex(productId)
+        if err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+            return
+        }
+        filter := bson.M{"_id": productObjID}
+        err = ProductCollection.FindOne(ctx, filter).Decode(&product)
+        if err != nil {
+            c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+            return
+        }
+
+        
+        pipeline := []bson.M{
+            {
+                "$match": bson.M{"product_id": productObjID},
+            },
+            {
+                "$lookup": bson.M{
+                    "from":         "User",
+                    "localField":   "user_id",
+                    "foreignField": "_id",
+                    "as":           "user",
+                },
+            },
+            {
+                "$unwind": bson.M{
+                    "path": "$user",
+                    "preserveNullAndEmptyArrays": true,
+                },
+            },
+			 {
+        "$project": bson.M{
+			"_id" : 1,
+			"product_id" : 1,
+			"reviews_details":1,
+			"approved" : 1,
+			"archived":1,
+			"created_at":1,
+			
+			"user" : bson.M{
+            "_id":    "$user._id",
+            "name":   "$user.username",
+            "mobileno":  "$user.mobileno",
+            
+        },
+		},
+	
+			
+        },
+	}
+
+        //get reviews with product_id 
+        cursor, err := ReviewsCollection.Aggregate(ctx, pipeline)
+        if err != nil {
+            fmt.Print(err)
+            c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to find reviews"})
+            return
+        }
+        defer cursor.Close(ctx)
+
+        var result []bson.M
+        if err := cursor.All(ctx, &result); err != nil {
+            
+            c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to get reviews"})
+            return
+        }
+
+       
+
+        c.JSON(http.StatusOK, result)
+    }
+}
+
+
+func GetReviews() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		var reviews []bson.M
+		  
+        pipeline := []bson.M{
+           
+            {
+                "$lookup": bson.M{
+                    "from":         "User",
+                    "localField":   "user_id",
+                    "foreignField": "_id",
+                    "as":           "user",
+                },
+            },
+			{
+				"$lookup": bson.M{
+					"from":         "Products",
+					"localField":   "product_id",
+					"foreignField": "_id",
+					"as":           "product",
+				},
+			},
+            {
+                "$unwind": bson.M{
+                    "path": "$user",
+                    "preserveNullAndEmptyArrays": true,
+                },
+				
+            },{
+				"$unwind": bson.M{
+					"path": "$product",
+					"preserveNullAndEmptyArrays": true,
+				},
+			},
+			 {
+        "$project": bson.M{
+			"_id" : 1,
+			"product" : 1,
+			"reviews_details":1,
+			"approved" : 1,
+			"archived":1,
+			"created_at":1,
+			
+			"user" : bson.M{
+            "_id":    "$user._id",
+            "name":   "$user.username",
+            "mobileno":  "$user.mobileno",
+            
+        },
+		},
+	
+			
+        },
+	}
+		cursor, err := ReviewsCollection.Aggregate(ctx, pipeline)
+		if err != nil {
+			c.IndentedJSON(http.StatusInternalServerError, "Something went wrong while fetching the reviews")
+			return
+		}
+		defer cursor.Close(ctx)
+		for cursor.Next(ctx) {
+			var review bson.M
+			err := cursor.Decode(&review)
+			if err != nil {
+				c.IndentedJSON(http.StatusInternalServerError, "Something went wrong while fetching the reviews")
+				return
+			}
+			reviews = append(reviews, review)
+		}
+		c.IndentedJSON(http.StatusOK, reviews)
+
+
+	}
+}
 
 
 
