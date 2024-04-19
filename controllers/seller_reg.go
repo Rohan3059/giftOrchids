@@ -172,7 +172,7 @@ func SellerEmailUpdate() gin.HandlerFunc {
 			return
 		}
 
-		err := SellerCollection.FindOne(ctx, bson.M{"mobileno": mobileno}).Decode(&seller)
+		err := SellerCollection.FindOne(ctx, bson.M{"mobileno": mobileno})
 		if err == nil{
 			c.Header("content-type", "application/json")
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "User already exists with this phone number"})
@@ -180,7 +180,7 @@ func SellerEmailUpdate() gin.HandlerFunc {
 			return
 		}
 
-		err = SellerCollection.FindOne(ctx, bson.M{"email": email}).Decode(&seller)
+		err = SellerCollection.FindOne(ctx, bson.M{"email": email})
 		if err == nil{
 			c.Header("content-type", "application/json")
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "User already exists with this email"})
@@ -198,7 +198,7 @@ func SellerEmailUpdate() gin.HandlerFunc {
 
 		_,inserterr := SellerCollection.InsertOne(ctx, seller)
 		if inserterr != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": inserterr.Error()})
 			return
 		}
 		
