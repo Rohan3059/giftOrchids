@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -266,12 +267,23 @@ func SellerRegistration() gin.HandlerFunc {
 
 
 		
-
-		profilePicture,err := profile_picture[0].Open();
+		var profilePicture io.ReadCloser
+		var profilePictureUrl string
+		if len(profile_picture) >0{
+		profile_Picture,err := profile_picture[0].Open();
+		profilePicture = profile_Picture
 		if err != nil {
 			c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening profile picture: %s", err.Error()))
 			return
-		}
+			}
+		
+		profilePicture_Url,err := saveFile(profilePicture,profile_picture[0]);
+		if err != nil {
+			c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving profile picture: %s", err.Error()))
+			return
+			} 
+			profilePictureUrl = profilePicture_Url	
+		} 
 
 
 
@@ -288,11 +300,7 @@ func SellerRegistration() gin.HandlerFunc {
 		
 
 
-		profilePictureUrl,err := saveFile(profilePicture,profile_picture[0]);
-		if err != nil {
-			c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving profile picture: %s", err.Error()))
-			return
-		}
+		
 
 
 
