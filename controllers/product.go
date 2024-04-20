@@ -788,7 +788,7 @@ func AddReviewHandler()gin.HandlerFunc { return func(c *gin.Context){
 	review.UserId = oid
 	//not null userId 
 	if review.UserId.Hex() == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": ""})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "You're not logged in"})
 		return
 	}
 
@@ -980,14 +980,41 @@ func GetProductApprovedReviews() gin.HandlerFunc {
             return
         }
 
-        // Debugging: Print the type and content of result
-        fmt.Printf("Type of result: %T\n", result)
-        fmt.Println("Content of result:")
-        for _, doc := range result {
-            fmt.Println(doc)
-        }
+var totalRating int32 = 0
+totalReviews := len(result)
+ratingCounts := make(map[int32]int)
 
-        c.JSON(http.StatusOK, result)
+// Iterate through each review in the result slice
+for _, review := range result {
+    rating := review["reviews_details"].(bson.M)["review_rating"].(int32)
+    
+    // Calculate total rating
+    totalRating += rating
+    
+    // Count the number of reviews for each rating
+    ratingCounts[rating]++
+}
+
+// Calculate average rating
+averageRating := float64(totalRating) / float64(totalReviews)
+
+// Calculate percentage of reviews for each ReviewRating
+percentageReviews := make(map[int32]float64)
+for rating, count := range ratingCounts {
+    percentage := float64(count) / float64(totalReviews) * 100
+    percentageReviews[rating] = percentage
+}
+
+
+
+       c.JSON(http.StatusOK, gin.H{
+    "reviews":          result,
+    "totalReviews":     totalReviews,
+    "averageRating":    averageRating,
+    "ratingPercentage":	percentageReviews ,
+})
+
+	
     }
 }
 

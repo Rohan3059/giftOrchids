@@ -251,7 +251,7 @@ func SellerRegistration() gin.HandlerFunc {
 
 		
 
-		if len(panFile) == 0 || len(aadharFile) == 0   {
+		if len(panFile) == 0 || len(aadharFile) == 0  || len(profile_picture) == 0 {
 			c.String(http.StatusBadRequest, "Please upload all required documents")
 			return
 		}
