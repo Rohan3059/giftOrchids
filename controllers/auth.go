@@ -215,7 +215,7 @@ func LoadSeller() gin.HandlerFunc {
 		return
 	}
 
-	// Convert sellerID to ObjectID
+	
 	sellerObjID, err := primitive.ObjectIDFromHex(sellerID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Seller ID"})

@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -170,12 +169,17 @@ func SellerEmailUpdate() gin.HandlerFunc {
 		}
 
 		seller.ID = primitive.NewObjectID()
-		seller.Seller_ID = seller.ID.String()
+		seller.Seller_ID = seller.ID.Hex()
 		seller.MobileNo = mobileno
 		seller.Email = email
 		seller.Password = HashPassword(password)
+		seller.User_type = utils.Seller
 		seller.Created_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 		seller.Updated_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		token, refreshtoken, _ := generate.TokenGenerator(seller.Email, seller.MobileNo, seller.Company_Name, seller.Seller_ID)
+		seller.Token = token
+		seller.Refresh_token = refreshtoken
+		
 		
 
 		_,inserterr := SellerCollection.InsertOne(ctx, seller)
@@ -267,23 +271,20 @@ func SellerRegistration() gin.HandlerFunc {
 
 
 		
-		var profilePicture io.ReadCloser
-		var profilePictureUrl string
-		if len(profile_picture) >0{
+		
+	
 		profile_Picture,err := profile_picture[0].Open();
-		profilePicture = profile_Picture
 		if err != nil {
 			c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening profile picture: %s", err.Error()))
 			return
 			}
 		
-		profilePicture_Url,err := saveFile(profilePicture,profile_picture[0]);
+		profilePicture_Url,err := saveFile(profile_Picture,profile_picture[0]);
 		if err != nil {
 			c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving profile picture: %s", err.Error()))
 			return
 			} 
-			profilePictureUrl = profilePicture_Url	
-		} 
+		
 
 
 
@@ -308,7 +309,7 @@ func SellerRegistration() gin.HandlerFunc {
 		defer panHeader.Close()
 		defer aadharHeader.Close()
 
-		defer profilePicture.Close()
+		defer profile_Picture.Close()
 
 		seller.Updated_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 		
@@ -317,7 +318,7 @@ func SellerRegistration() gin.HandlerFunc {
 		seller.CompanyDetail.AadharNumber = AadharNumber
 		seller.CompanyDetail.PAN = PAN
 		seller.CompanyDetail.PermanentAddress = PermanentAddress
-		seller.CompanyDetail.ProfilePicture = profilePictureUrl
+		seller.CompanyDetail.ProfilePicture = profilePicture_Url
 		seller.CompanyDetail.BusinessType = BusinessType
 		seller.CompanyDetail.YearEstablished = YearEstablished
 		seller.CompanyDetail.CompanyOrigin = CompanyOrigin
@@ -331,7 +332,6 @@ func SellerRegistration() gin.HandlerFunc {
 		token, refreshtoken, _ := generate.TokenGenerator(seller.Email, seller.MobileNo, seller.Company_Name, seller.Seller_ID)
 		seller.Token = token
 		seller.Refresh_token = refreshtoken
-		seller.User_type = "SELLER"
 		validationErr := validate.Struct(seller)
 		if validationErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": validationErr.Error()})
