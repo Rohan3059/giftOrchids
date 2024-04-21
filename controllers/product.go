@@ -290,7 +290,6 @@ func GetProduct() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		var product models.Product
 		productID := c.Query("productId")
 		if productID == "" {
 			c.Header("content-type", "application/json")
@@ -305,29 +304,85 @@ func GetProduct() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		err = ProductCollection.FindOne(ctx, primitive.M{"_id": prodID}).Decode(&product)
-		if err != nil {
-			log.Println(err)
-			c.JSON(http.StatusBadRequest, utils.ErrorCantFindProduct)
-			return
-		}
 
+type ProductWithAttributes struct {
+	models.Product
+	AttributesInfo []models.AttributeType `bson:"attributes_info" json:"attributes_info"`
+}
 
-		if product.Image != nil {
-			for i, url := range product.Image {
+// Perform aggregation
+pipeline := []bson.M{
+	{
+		"$match": bson.M{"_id": prodID},
+	},
+	{
+		"$lookup": bson.M{
+			"from":         "AttributeType", 
+			"localField":   "attributes.attribute_type",
+			"foreignField": "_id",
+			"as":           "attributes_info",
+		},
+	},
+	
+	{
+        "$unwind": "$attributes_info",
+    },
+    
+   
+	}
+
+// Create a variable to store the result
+var result ProductWithAttributes
+
+// Perform aggregation
+cursor, err := ProductCollection.Aggregate(ctx, pipeline)
+if err != nil {
+	log.Println(err)
+	c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()} )
+	return
+}
+defer cursor.Close(ctx)
+
+// Iterate over the cursor and decode the result
+// Iterate over the cursor and decode the result
+for cursor.Next(ctx) {
+    if err := cursor.Decode(&result); err != nil {
+        log.Println(err)
+        c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+        return
+    }
+    // Decode Product details separately
+    if err := cursor.Decode(&result.Product); err != nil {
+        log.Println(err)
+        c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+        return
+    }
+}
+
+// Check if no result found
+if result.Product.Product_ID.IsZero() {
+    c.JSON(http.StatusNotFound, gin.H{"Error": "Product not found"})
+    return
+}
+
+fmt.Println(result.Product.Image)
+fmt.Println(len(result.Product.Image))
+
+		if result.Product.Image != nil {
+			for i, url := range result.Product.Image {
 				imageUrl, err := getPresignURL(url)
 				if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
 				return
 			}
-			product.Image[i] = imageUrl
+			result.Product.Image[i] = imageUrl
 			}
 
 			
 		}
 
 
-		c.JSON(http.StatusOK, product)
+		c.JSON(http.StatusOK, result)
 	}
 
 }

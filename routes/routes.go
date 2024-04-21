@@ -28,6 +28,9 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/post-requirement",controllers.CreateRequirementMessage())
 	incomingRoutes.GET("/get-productReference",controllers.FetchProductsAndReferencesHandler())
 	incomingRoutes.GET("/product-reference", controllers.GetProductReferenceHandler())
+	incomingRoutes.POST("/add-attributeType",controllers.AddAttributeType())
+	incomingRoutes.GET("/all-attributesType",controllers.GetAllAttributes())
+	incomingRoutes.GET("/get-attributeType",controllers.GetAttributeByID())
 	
 	incomingRoutes.GET("/product-reviews",controllers.GetProductReviews())
 	incomingRoutes.GET("/approved-product-reviews",controllers.GetProductApprovedReviews())
