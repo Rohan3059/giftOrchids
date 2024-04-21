@@ -324,11 +324,6 @@ pipeline := []bson.M{
 		},
 	},
 	
-	{
-        "$unwind": "$attributes_info",
-    },
-    
-   
 	}
 
 // Create a variable to store the result
