@@ -28,7 +28,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/post-requirement",controllers.CreateRequirementMessage())
 	incomingRoutes.GET("/get-productReference",controllers.FetchProductsAndReferencesHandler())
 	incomingRoutes.GET("/product-reference", controllers.GetProductReferenceHandler())
-	incomingRoutes.POST("/add-attributeType",controllers.AddAttributeType())
+	
 	incomingRoutes.GET("/all-attributesType",controllers.GetAllAttributes())
 	incomingRoutes.GET("/get-attributeType",controllers.GetAttributeByID())
 	
@@ -73,6 +73,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/seller/update-profilepicture",controllers.SellerUpdateProfilePictureHandler())
 	incomingRoutes.POST("/admin/approve-review", controllers.ApproveReview())
 	incomingRoutes.GET("/admin/all-reviews",controllers.GetReviews())
+	incomingRoutes.POST("/admin/add-attributeType",controllers.AddAttributeType())
 
 	//incomingRoutes.GET("/getcategory", controllers.GetCategory())
 }

@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -237,21 +236,12 @@ func ProductViewerAdmin() gin.HandlerFunc {
 		}
 		files := form.File["files"]
 		
-		//var fileString []string
-		cfg, err := config.LoadDefaultConfig(context.TODO())
-		fmt.Print(cfg);
-	
-		if err != nil {
-			log.Fatal(err)
-			log.Println("error while multipart")
-			c.String(http.StatusInternalServerError, "get form err: %s", err.Error())
-			return
-		}
-		//	client := s3.NewFromConfig(cfg)
-		//	uploader := manager.NewUploader(client)
+		
+		
 		var errors []string
 		var uploadedURLs []string
 		var resFileName []string
+		fmt.Println(files)
 		for _, file := range files {
 			f, err := file.Open()
 			if err != nil {
