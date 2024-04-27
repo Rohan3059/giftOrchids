@@ -34,6 +34,9 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	
 	incomingRoutes.GET("/product-reviews",controllers.GetProductReviews())
 	incomingRoutes.GET("/approved-product-reviews",controllers.GetProductApprovedReviews())
+	incomingRoutes.POST("/create-ticket",controllers.CreateTicket())
+	incomingRoutes.GET("/getTickets",controllers.GetTickets())
+
 	
 	incomingRoutes.POST("/add-admin",controllers.RegisterAdmin())
 	

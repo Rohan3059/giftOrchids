@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -25,7 +24,13 @@ func EnquiryHandler() gin.HandlerFunc {
 		}
 		var enquire models.Enquire
 		if err := c.BindJSON(&enquire); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": err})
+			return
+
+		}
+
+		if(enquire.Enquiry_note==""){
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Enquiry note is required"})
 			return
 		}
 
@@ -39,8 +44,6 @@ func EnquiryHandler() gin.HandlerFunc {
 		enquire.Enquire_id = primitive.NewObjectID()
 		enquire.User_id = uid.(string)
 
-		fmt.Println(enquire.Enquiry_note)
-		
 		
 		_, err := EnquireCollection.InsertOne(ctx, enquire)
 		if err != nil {

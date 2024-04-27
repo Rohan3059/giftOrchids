@@ -176,6 +176,18 @@ func getPresignURL(s3Url string) (string, error) {
 func ProductViewerAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		var sellerId string
+		if(checkSeller(ctx, c)){
+			sellerID, exists := c.Get("uid")
+			if !exists {
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "Seller ID not found in context"})
+				return
+			}
+
+			sellerId = sellerID.(string)
+			
+		}
+
 		var product models.Product
 		
 		defer cancel()
@@ -264,6 +276,10 @@ func ProductViewerAdmin() gin.HandlerFunc {
 		}
 		fmt.Println(resFileName)
 		product.Image = uploadedURLs
+
+		var sellers[]string
+		sellers = append(sellers, sellerId)
+		product.SellerRegistered = sellers
 
 		_, anyerr := ProductCollection.InsertOne(ctx, product)
 		if anyerr != nil {

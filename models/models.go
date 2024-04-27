@@ -192,12 +192,12 @@ type USer struct {
 }
 
 type Enquire struct {
-	Enquire_id primitive.ObjectID `bson:"_id"`
-	User_id    string             `bson:"user_id"`
-	Product_id string             `bson:"product_id"`
-	Quantity   int             `bson:"quantity"`
-	Resolved   bool               `bson:"resolved"`
-	Enquiry_note string 			`bson:"enquire_note"`	
+	Enquire_id primitive.ObjectID `bson:"_id" `
+	User_id    string             `json:"user_id" bson:"user_id"` 
+	Product_id string             `json:"product_id" bson:"product_id"`
+	Quantity   int             `json:"quantity" bson:"quantity" `
+	Resolved   bool               ` json:"resolved" bson:"resolved" `
+	Enquiry_note string 			`json:"enquire_note" bson:"enquire_note" `	
 }
 
 type RequirementMessage struct{
@@ -209,5 +209,24 @@ type RequirementMessage struct{
 	MobileNo       string              `json:"mobileno"`
 	Message        string              `json:"message"`
 	
+}
+
+type CustomerSupportTicket struct {
+	Ticket_id primitive.ObjectID `bson:"_id"`
+	TicketID  string             `json:"ticketid" bson:"ticketid"`
+	IsResolved bool               `json:"resolved" bson:"resolved"`
+	IsDeleted bool                `json:"deleted" bson:"deleted"`
+	Name      string              `json:"name" bson:"name"`
+	Email     string              `json:"email" bson:"email"`
+	MobileNo  string              `json:"mobileno" bson:"mobileno"`
+	Subject   string              `json:"subject" bson:"subject"`
+	Message   string              `json:"message" bson:"message"`
+	Status    string              `json:"status" bson:"status" `
+	Attachments []string           `json:"attachments" bson:"attachments"`
+	SupportMessage []string         `json:"supportmessage" bson:"supportmessage"`
+	CreatedAt time.Time           `json:"created_at" bson:"created_at"`
+	UpdatedAt time.Time           `json:"updated_at" bson:"updated_at"`
+	AssignedSupport string           `json:"assignedsupport" bson:"assignedsupport"`
+
 
 }
