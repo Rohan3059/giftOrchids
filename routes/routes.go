@@ -35,7 +35,6 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.GET("/product-reviews",controllers.GetProductReviews())
 	incomingRoutes.GET("/approved-product-reviews",controllers.GetProductApprovedReviews())
 	incomingRoutes.POST("/create-ticket",controllers.CreateTicket())
-	incomingRoutes.GET("/getTickets",controllers.GetTickets())
 
 	
 	incomingRoutes.POST("/add-admin",controllers.RegisterAdmin())
@@ -77,6 +76,8 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/admin/approve-review", controllers.ApproveReview())
 	incomingRoutes.GET("/admin/all-reviews",controllers.GetReviews())
 	incomingRoutes.POST("/admin/add-attributeType",controllers.AddAttributeType())
+	incomingRoutes.GET("/admin/getTickets",controllers.GetTickets())
+
 
 	//incomingRoutes.GET("/getcategory", controllers.GetCategory())
 }
