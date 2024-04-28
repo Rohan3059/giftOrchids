@@ -33,17 +33,16 @@ func AddCategory() gin.HandlerFunc {
 
 		parentCategoryId := c.PostForm("parent_category")
 
-		if parentCategoryId == ""  {
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "parent category is required"})
-			return
-		}
+		
 
 		if categoryName == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "category name is required"})
 			return
 		}
 
-		category.Parent_Category, _ = primitive.ObjectIDFromHex(parentCategoryId)
+		if parentCategoryId!=""  {
+			category.Parent_Category, _ = primitive.ObjectIDFromHex(parentCategoryId)
+		}
 		category.Category = categoryName
 
 		form, err := c.MultipartForm()
@@ -72,11 +71,11 @@ func AddCategory() gin.HandlerFunc {
 			return
 		}
 		category.Category_image = categoryImage
+
+		category.Category_Description = c.PostForm("category_description")
+
+		category.Approved = false
 		
-		
-
-
-
 		count, err := CategoriesCollection.CountDocuments(ctx, bson.M{"category": category.Category})
 		defer cancel()
 		if err != nil {
@@ -85,7 +84,7 @@ func AddCategory() gin.HandlerFunc {
 			return
 		}
 		if count > 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "Category already exist with this"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Category already exist with this name"})
 			return
 		}
 	
@@ -307,4 +306,44 @@ func EditCategory() gin.HandlerFunc {
 		c.IndentedJSON(http.StatusOK, "Successfully updated category")
 
 	}
+}
+
+
+func ApproveCategory() gin.HandlerFunc {
+
+
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		cat_id := c.Query("id")
+
+		if cat_id == "" {
+			c.Header("content-type", "application/json")
+			c.JSON(http.StatusNotFound, gin.H{"Error": "Invalid Category id"})
+			c.Abort()
+			return
+		}
+
+		catID, err := primitive.ObjectIDFromHex(cat_id)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Internal server error"})
+			return
+		}
+
+		
+		_,err = CategoriesCollection.UpdateOne(ctx, bson.M{"_id": catID}, bson.D{{Key: "$set", Value: bson.M{"isApproved": true}}})
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Internal server error"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Category approved successfully"})
+		
+
+	}
+
+
 }

@@ -36,6 +36,8 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.GET("/approved-product-reviews",controllers.GetProductApprovedReviews())
 	incomingRoutes.POST("/create-ticket",controllers.CreateTicket())
 
+	incomingRoutes.GET("/ticket/:id",controllers.GetTicketById())
+
 	
 	incomingRoutes.POST("/add-admin",controllers.RegisterAdmin())
 	
@@ -64,9 +66,11 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.Use(middleware.Authentication())
 	incomingRoutes.POST("/admin/approveSeller", controllers.ApproveSeller())
 	incomingRoutes.POST("/admin/addcategory", controllers.AddCategory())
+	incomingRoutes.POST("/admin/category/approve/:id", controllers.ApproveCategory())
 	incomingRoutes.PUT("/admin/updateProduct", controllers.UpdateProduct())
 	incomingRoutes.POST("/admin/add-product", controllers.ProductViewerAdmin())
 	incomingRoutes.GET("/admin/get-enquiry", controllers.GETEnquiryHandler())
+	incomingRoutes.GET("/admin/enquiry/:id", controllers.GetAdminSingleEnquiry())
 	incomingRoutes.GET("/admin/getseller", controllers.GetSeller())
 	incomingRoutes.GET("/admin/approve-product", controllers.ApproveProduct())
 	incomingRoutes.GET("/seller/info", controllers.LoadSeller())

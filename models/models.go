@@ -107,8 +107,9 @@ type Categories struct {
 	Category_ID primitive.ObjectID `bson:"_id"`
 	Category    string             `json:"category" bson:"category"`
 	Category_image string             `json:"category_image" bson:"category_image"`
-
+	Category_Description string             `json:"category_description" bson:"category_description"`
 	Parent_Category primitive.ObjectID    `json:"parent_category" bson:"parent_category"`
+	Approved bool `json:"isApproved" bson:"isApproved"`
 }
 
 type Seller struct {
@@ -193,11 +194,15 @@ type USer struct {
 
 type Enquire struct {
 	Enquire_id primitive.ObjectID `bson:"_id" `
+	EnquireId  string             `json:"enquire_id" bson:"enquire_id"`
 	User_id    string             `json:"user_id" bson:"user_id"` 
 	Product_id string             `json:"product_id" bson:"product_id"`
 	Quantity   int             `json:"quantity" bson:"quantity" `
 	Resolved   bool               ` json:"resolved" bson:"resolved" `
+	Status     string             `json:"status" bson:"status" `
 	Enquiry_note string 			`json:"enquire_note" bson:"enquire_note" `	
+	Enquire_date time.Time `json:"enquire_date" bson:"enquire_date"`
+	UpdatedAt   time.Time `json:"updated_at" bson:"updated_at"`
 }
 
 type RequirementMessage struct{

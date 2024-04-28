@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -35,14 +36,15 @@ func EnquiryHandler() gin.HandlerFunc {
 		}
 
 		
-
-	
-
-		
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		enquire.Enquire_id = primitive.NewObjectID()
 		enquire.User_id = uid.(string)
+		
+		enquire.EnquireId,_ = GenerateUniqueTicketID(ctx,enquire.User_id )
+		enquire.Status = "Pending"
+		enquire.Enquire_date,_ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		enquire.UpdatedAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339)) 
 
 		
 		_, err := EnquireCollection.InsertOne(ctx, enquire)
@@ -66,7 +68,7 @@ func GetUserEnquiries() gin.HandlerFunc {
 
         // Convert user ID to string
         userID := uid.(string)
-
+		fmt.Println(userID)
         // Define filter to fetch enquiries for the specific user
         filter := bson.M{"user_id": userID}
 
@@ -89,6 +91,7 @@ func GetUserEnquiries() gin.HandlerFunc {
 
             // Fetch product details based on product_id
             var product models.Product
+			fmt.Println(enquire)
 
 		prodID, err := primitive.ObjectIDFromHex(enquire.Product_id)
 		if err != nil {
@@ -104,14 +107,24 @@ func GetUserEnquiries() gin.HandlerFunc {
                 return
             }
 
+			var imgUrl string
+			if product.Image !=nil{
+				url,err := getPresignURL(product.Image[0])
+				if err != nil {
+					imgUrl = ""
+				}
+				imgUrl = url
+			}
+
             // Add product name and image to enquiry
             enquiryWithProduct := map[string]interface{}{
                 "enquiry_id":   enquire.Enquire_id.Hex(),
                 "user_id":      enquire.User_id,
                 "product_name": product.Product_Name,
-                "product_image": product.Image,
+                "product_image": imgUrl,
 				"enquire_note": enquire.Enquiry_note,
 				"enquire_quantity": enquire.Quantity,
+				"enquire_status": enquire.Status,
                 // Add other enquiry fields if needed
             }
             enquiries = append(enquiries, enquiryWithProduct)
@@ -132,7 +145,7 @@ func GETEnquiryHandler() gin.HandlerFunc {
 		defer cancel()
 
 		if !checkAdmin(ctx, c) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Admin Token Not found"})
+			c.JSON(http.StatusForbidden, gin.H{"Error": "Admin Token Not found"})
 			return
 		}
 
@@ -170,6 +183,58 @@ func GETEnquiryHandler() gin.HandlerFunc {
 
 			enquiriesWithDetails = append(enquiriesWithDetails, enquiryWithDetails)
 		}
+
+		c.JSON(http.StatusOK, enquiriesWithDetails)
+	}
+}
+
+func GetAdminSingleEnquiry() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		var Enquire_id = c.Param("id")
+		id,err :=primitive.ObjectIDFromHex(Enquire_id)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid ID"})
+			return
+		}
+
+		if !checkAdmin(ctx, c) {
+			c.JSON(http.StatusForbidden, gin.H{"Error": "Admin Token Not found"})
+			return
+		}
+
+		var enquire models.Enquire
+
+		findErr := EnquireCollection.FindOne(ctx, primitive.M{
+			"_id": id,
+		}).Decode(&enquire)
+		if findErr != nil {
+			log.Print(findErr)
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Unable to fetch"})
+			return
+		}
+
+		// Enrich enquiry data with additional details
+		enquiriesWithDetails := make([]map[string]interface{}, 0)
+
+		
+			// Fetch product details based on product_id
+			productDetails := getProductDetails(ctx, enquire.Product_id)
+
+			// Fetch user details based on user_id
+			userDetails := getUserDetails(ctx, enquire.User_id)
+
+			// Construct enriched enquiry
+			enquiryWithDetails := map[string]interface{}{
+				"enquiry":   enquire,
+				"product":   productDetails,
+				"user":      userDetails,
+			}
+
+			enquiriesWithDetails = append(enquiriesWithDetails, enquiryWithDetails)
+		
 
 		c.JSON(http.StatusOK, enquiriesWithDetails)
 	}

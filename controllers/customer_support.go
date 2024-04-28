@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -19,7 +20,7 @@ var SupportTickerCollection = database.ProductData(database.Client, "CustomerSup
 func GenerateUniqueTicketID(ctx context.Context,  suffix string) (string, error) {
     // Generate the ticket ID based on creation timestamp and name.
 	currentTime,_ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
-    generatedTicketID := strconv.FormatInt(currentTime.Unix(), 10) + strings.ToUpper(suffix)
+    generatedTicketID := strconv.FormatInt(currentTime.Unix(), 5) + strings.ToUpper(suffix)[0:2]
 
     // Check if the generated ID already exists.
     for {
@@ -47,7 +48,6 @@ func CreateTicket() gin.HandlerFunc {
 		//generate random 6 digit ticket id not based on time
 	
 		ticket.Ticket_id =  primitive.NewObjectID()
-		ticket.TicketID = strings.ToUpper(ticket.Ticket_id.String()[0:6])
 		ticket.Email = c.PostForm("email")
 		ticket.Subject = c.PostForm("subject")
 		ticket.Message = c.PostForm("message")
@@ -62,6 +62,8 @@ func CreateTicket() gin.HandlerFunc {
 		ticket.TicketID=id
 
 		ticket.CreatedAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+
+		ticket.UpdatedAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 
 		 //var multipartForm *multipart.Form
 		 multipartForm,err := c.MultipartForm()
@@ -112,33 +114,31 @@ func CreateTicket() gin.HandlerFunc {
 func GetTickets() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		status := c.Query("status")
 		defer cancel()
+
+		status := c.Query("status")
+		filter := bson.M{}
+		if status != "" {
+			filter["status"] = status
+		}
+
+		cursor, err := SupportTickerCollection.Find(ctx, filter)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+			return
+		}
+		defer cursor.Close(ctx)
+
 		var tickets []models.CustomerSupportTicket
-		
-		cursor, err := SupportTickerCollection.Find(ctx, bson.M{})
-		if(status != ""){
-			cursor, err = SupportTickerCollection.Find(ctx, bson.M{"status": status})
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
-				return
-			}
-
-
-		}
-		if err != nil {
+		if err := cursor.All(ctx, &tickets); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
 			return
 		}
-	
-		err = cursor.All(ctx, &tickets)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
-			return
-		}
+
 		c.JSON(http.StatusOK, tickets)
 	}
 }
+
 
 
 // @Summary Update ticket status
@@ -174,25 +174,41 @@ func UpdateTicket() gin.HandlerFunc {
 
 }
 
-func getTicketById() gin.HandlerFunc {
+func GetTicketById() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		ticketId := c.Param("id")
+
+		ticketID := c.Param("id")
+		fmt.Print(ticketID)
+		filter := bson.M{
+			"$or": []bson.M{
+				{"_id": ticketID},
+				{"ticketid": ticketID},
+			},
+		}
+
+		if(ticketID == ""){
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Ticket ID is required"})
+			return
+		}
+
 		var ticket models.CustomerSupportTicket
-		err := SupportTickerCollection.FindOne(ctx, bson.M{"_id": ticketId}).Decode(&ticket)
+		err := SupportTickerCollection.FindOne(ctx, filter).Decode(&ticket)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
 			return
 		}
+
 		c.JSON(http.StatusOK, ticket)
 	}
 }
 
 
+
 //assign ticket
 
-func assignTicket() gin.HandlerFunc{
+func AssignTicket() gin.HandlerFunc{
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -230,7 +246,7 @@ func assignTicket() gin.HandlerFunc{
 
 
 //add reply to ticket
-func addReply() gin.HandlerFunc{
+func AddReply() gin.HandlerFunc{
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
