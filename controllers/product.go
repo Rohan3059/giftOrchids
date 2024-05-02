@@ -33,6 +33,7 @@ var ProductCollection *mongo.Collection = database.ProductData(database.Client, 
 var EnquireCollection *mongo.Collection = database.ProductData(database.Client, "enquire")
 var RequirementMessageCollection *mongo.Collection = database.ProductData(database.Client,"RequirementMessage")
 var ReviewsCollection *mongo.Collection = database.ProductData(database.Client, "Reviews")
+var FeedsCollection *mongo.Collection = database.ProductData(database.Client, "New_Feeds")
 
 
 
@@ -161,7 +162,7 @@ func getPresignURL(s3Url string) (string, error) {
 	req, _ := s3client.GetObjectRequest(&s3.GetObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(keyName),
-		ResponseContentType:  aws.String("image/jpeg"),
+		
 	})
 	presignedURL, err := req.Presign(time.Hour * 24) // URL expires in 24 hours
 	if err != nil {

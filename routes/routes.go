@@ -81,6 +81,10 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.GET("/admin/all-reviews",controllers.GetReviews())
 	incomingRoutes.POST("/admin/add-attributeType",controllers.AddAttributeType())
 	incomingRoutes.GET("/admin/getTickets",controllers.GetTickets())
+	
+	incomingRoutes.POST("/admin/add_feed", controllers.PostFeedHandler())
+	incomingRoutes.DELETE("/admin/add_feed", controllers.DeleteFeed())
+	incomingRoutes.GET("/get-feeds", controllers.GetAllFeedsHandler())
 
 
 	//incomingRoutes.GET("/getcategory", controllers.GetCategory())
