@@ -158,11 +158,21 @@ func getPresignURL(s3Url string) (string, error) {
 		return "", nil // Return nil error as keyName is empty
 	}
 
+	var contentType string;
+	//check if url contain pdf or jpg/png word
+	if strings.Contains(s3Url, "pdf")  {
+		contentType = "application/pdf"
+	}else {
+		contentType = "image/*"
+	}
+
+
+
 	// Generate the pre-signed URL
 	req, _ := s3client.GetObjectRequest(&s3.GetObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(keyName),
-		
+		ResponseContentType: &contentType ,	
 	})
 	presignedURL, err := req.Presign(time.Hour * 24) // URL expires in 24 hours
 	if err != nil {
