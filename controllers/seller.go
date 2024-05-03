@@ -63,6 +63,23 @@ func GetSeller() gin.HandlerFunc {
 				c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
 				return
 			}
+
+			//retrive companyDetail addhar and pan document and get s3 presign url
+			if sellerDetail.CompanyDetail.AadharImage != "" {
+				aadharPresignURL, err := getPresignURL(sellerDetail.CompanyDetail.AadharImage)
+				if err != nil {
+					log.Println(err)
+				}
+				sellerDetail.CompanyDetail.AadharImage = aadharPresignURL
+			}
+			if sellerDetail.CompanyDetail.PANImage != "" {
+				panPresignURL, err := getPresignURL(sellerDetail.CompanyDetail.PANImage)
+				if err != nil {
+					log.Println(err)
+				}
+				sellerDetail.CompanyDetail.PANImage = panPresignURL
+			}
+
 			c.JSON(http.StatusOK, sellerDetail)
 			return
 		}
@@ -80,7 +97,9 @@ func GetSeller() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch seller details"})
 			return
 		}
+
 		c.JSON(http.StatusOK, sellerDetails)
+		
 	}
 }
 
