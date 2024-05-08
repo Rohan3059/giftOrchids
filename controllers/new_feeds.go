@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,24 +9,22 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kravi0/BizGrowth-backend/models"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func PostFeedHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var feed models.Feed
-		err := json.NewDecoder(c.Request.Body).Decode(&feed)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "Please post valid data decoder error"})
-			return
-		}
+		
 		var errors []string
-		err = validate.Struct(feed)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "Please post valid data"})
-			return
-		}
+
+		var feed models.Feed
+		
 		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+
+		 title := c.PostForm("title")
+		 content :=c.PostForm("content")
+
 		defer cancel()
 		form, err := c.MultipartForm()
 		if err != nil {
@@ -57,12 +54,19 @@ func PostFeedHandler() gin.HandlerFunc {
 				c.JSON(http.StatusOK, gin.H{"url": uploadedURLs})
 			}
 		}
+
+		feed.FeedID = primitive.NewObjectID()
 		feed.FeedDocument = uploadedURLs
+		feed.Content = content
+		feed.Title = title
 		_, anyerr := FeedsCollection.InsertOne(ctx, feed)
 		if anyerr != nil {
+			fmt.Print(anyerr.Error())
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Not Created"})
 			return
 		}
+
+		c.JSON(http.StatusOK, "Successfully added feed!!")
 		defer cancel()
 	}
 }
@@ -70,24 +74,23 @@ func GetAllFeedsHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		cursor, err := FeedsCollection.Find(ctx, nil)
+		cursor, err := FeedsCollection.Find(ctx,bson.M{})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
 			return
 		}
-		defer cursor.Close(context.Background())
 
+		//iterate through cursor and get all feeds
 		var feeds []models.Feed
-		for cursor.Next(context.Background()) {
-			var feed models.Feed
-			if err := cursor.Decode(&feed); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
-				return
-			}
-			feeds = append(feeds, feed)
+		
+		if err:= cursor.All(ctx,&feeds); err!=nil{
+			c.JSON(http.StatusInternalServerError, gin.H{"Error in cursor ": err.Error()})
+			return
 		}
-
+		
 		c.JSON(http.StatusOK, feeds)
+
+	
 	}
 
 }

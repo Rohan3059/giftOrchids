@@ -480,12 +480,14 @@ func SellerLicenseUpdate() gin.HandlerFunc {
 				c.JSON(http.StatusBadRequest,  gin.H{"Error": "No export permission files provided"})
 				return
 			}
-		}
 
-		if len(ExportLicenseArray) == 0 || len(ExportLicenseValueArray) == 0 || len(ExportLicenseIssuedDateArray) == 0 {
+			if len(ExportLicenseArray) == 0 || len(ExportLicenseValueArray) == 0 || len(ExportLicenseIssuedDateArray) == 0 {
 			c.JSON(http.StatusBadRequest,  gin.H{"Error": "No export permission files provided"})
 			return
 		}
+		}
+
+		
 
 
 		for i := 0; i < len(ExportLicenseArray); i++ {

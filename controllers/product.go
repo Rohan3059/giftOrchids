@@ -82,10 +82,13 @@ func saveFile(fileReader io.Reader, fileHeader *multipart.FileHeader) (string, e
 	
 	bucketName := os.Getenv("AWS_BUCKET_NAME")
 	mtype, error := mimetype.DetectReader(fileReader);
+
 	if error != nil {
 		return "", error
 	}
 
+	
+	
 	_, err := uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(fileHeader.Filename),
@@ -159,21 +162,29 @@ func getPresignURL(s3Url string) (string, error) {
 	}
 
 	var contentType string;
-	//check if url contain pdf or jpg/png word
+	
 	if strings.Contains(s3Url, "pdf")  {
 		contentType = "application/pdf"
+	}else if strings.Contains(s3Url,"mp4")   {
+		contentType = "video/mp4"
 	}else {
-		contentType = "image/*"
+		contentType = "image/png"
 	}
 
 
-
-	// Generate the pre-signed URL
 	req, _ := s3client.GetObjectRequest(&s3.GetObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(keyName),
-		ResponseContentType: &contentType ,	
+		ResponseContentType: aws.String(contentType) ,
+		
+		
 	})
+
+	q := req.HTTPRequest.URL.Query()
+	q.Add("x-amz-acl", "public-read")
+	q.Add("Content-Type", contentType)
+	req.HTTPRequest.URL.RawQuery = q.Encode()
+
 	presignedURL, err := req.Presign(time.Hour * 24) // URL expires in 24 hours
 	if err != nil {
 		return "", err
@@ -187,6 +198,7 @@ func getPresignURL(s3Url string) (string, error) {
 func ProductViewerAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
 		var sellerId string
 		if(checkSeller(ctx, c)){
 			sellerID, exists := c.Get("uid")
