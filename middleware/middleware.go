@@ -20,7 +20,7 @@ func Authentication() gin.HandlerFunc {
 		calims, msg := tokens.ValidateToken(clientToken)
 
 		if msg != "" {
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": msg})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": msg})
 			c.Abort()
 			return
 
