@@ -315,7 +315,7 @@ func LoadUser() gin.HandlerFunc {
 
 	// Query the database to get seller information
 	var user models.USer // Assuming Seller struct is defined in models package
-	err = SellerCollection.FindOne(context.Background(), bson.M{"_id": userObjID}).Decode(&user)
+	err = UserCollection.FindOne(context.Background(), bson.M{"_id": userObjID}).Decode(&user)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
 		return
