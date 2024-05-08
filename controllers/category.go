@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -194,11 +193,7 @@ func GetSingleCategory() gin.HandlerFunc {
 	
     
     child_category, err := GetCategoryWithId(objID)
-	fmt.Println(err)
-    if err != nil {
-        c.JSON(http.StatusNotFound, gin.H{"Error": "Child Category not found"})
-        return
-    }
+	
 
 
 	 categoryWithChildren := CategoryWithChildren{
