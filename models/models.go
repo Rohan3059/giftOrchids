@@ -49,7 +49,7 @@ type ProductPriceRange struct {
 
 	MinQuantity int              `bson:"minQuantity" json:"minQuantity"`
 	MaxQuantity int              `bson:"maxQuantity" json:"maxQuantity"`
-	Price       string             `bson:"price"`
+	Price       int             `bson:"price" json:"price" ` 
 }
 
 type Reviews struct {
