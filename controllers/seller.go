@@ -18,7 +18,6 @@ import (
 var SellerCollection *mongo.Collection = database.ProductData(database.Client, "seller")
 var ProductReference *mongo.Collection = database.ProductData(database.Client, "ProductReference")
 
-
 //var  *mongo.Collection = database.ProductData(database.Client, "seller")
 
 // get all seller if no id is passesed all details if id id passed it will return sepcific seller
@@ -26,7 +25,7 @@ func GetSeller() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
-		
+
 		// Check if the user is a seller
 		if checkSeller(ctx, c) {
 			var sellerDetail models.Seller
@@ -41,7 +40,7 @@ func GetSeller() gin.HandlerFunc {
 			c.JSON(http.StatusOK, sellerDetail)
 			return
 		}
-		
+
 		// Check if the user is an admin
 		if !checkAdmin(ctx, c) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
@@ -99,10 +98,9 @@ func GetSeller() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, sellerDetails)
-		
+
 	}
 }
-
 
 // func AddSeller() gin.HandlerFunc {
 // 	return func(c *gin.Context) {
@@ -142,83 +140,81 @@ func DeleteSeller() gin.HandlerFunc {
 	}
 }
 
-
 func AddProductReferenceHandler() gin.HandlerFunc {
-    return func(c *gin.Context) {
-        var input struct {
-            SellerID    string `json:"seller_id" binding:"required"`
-            ProductID   string `json:"product_id" binding:"required"`
-            Price       string `json:"price" binding:"required"`
-            MinQuantity int    `json:"min_quantity" binding:"required"`
-            MaxQuantity int    `json:"max_quantity" binding:"required"`
-        }
-        ctx := context.Background()
+	return func(c *gin.Context) {
+		var input struct {
+			SellerID    string `json:"seller_id" binding:"required"`
+			ProductID   string `json:"product_id" binding:"required"`
+			Price       string `json:"price" binding:"required"`
+			MinQuantity int    `json:"min_quantity" binding:"required"`
+			MaxQuantity int    `json:"max_quantity" binding:"required"`
+		}
+		ctx := context.Background()
 
-        if err := c.ShouldBindJSON(&input); err != nil {
-            fmt.Println(err)
-            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-            return
-        }
+		if err := c.ShouldBindJSON(&input); err != nil {
+			fmt.Println(err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 
-        sellerID, err := primitive.ObjectIDFromHex(input.SellerID)
-        if err != nil {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "invalid seller ID"})
-            return
-        }
+		sellerID, err := primitive.ObjectIDFromHex(input.SellerID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid seller ID"})
+			return
+		}
 
-        productID, err := primitive.ObjectIDFromHex(input.ProductID)
-        if err != nil {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product ID"})
-            return
-        }
+		productID, err := primitive.ObjectIDFromHex(input.ProductID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product ID"})
+			return
+		}
 
-        productReference := models.ProductReference{
-            ID:          primitive.NewObjectID(),
-            ProductID:   productID,
-            SellerID:    sellerID,
-            Price:       input.Price,
-            MinQuantity: input.MinQuantity,
-            MaxQuantity: input.MaxQuantity,
-            CreatedAt:   time.Now(),
-            UpdatedAt:   time.Now(),
-            Approved:    false, // You may set the default value as needed
-            Archived:    false, // You may set the default value as needed
-        }
+		productReference := models.ProductReference{
+			ID:          primitive.NewObjectID(),
+			ProductID:   productID,
+			SellerID:    sellerID,
+			Price:       input.Price,
+			MinQuantity: input.MinQuantity,
+			MaxQuantity: input.MaxQuantity,
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			Approved:    false, // You may set the default value as needed
+			Archived:    false, // You may set the default value as needed
+		}
 
-        // Insert product reference into the ProductReferenceCollection
-        _, err = ProductReference.InsertOne(ctx, productReference)
-        if err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-            return
-        }
+		// Insert product reference into the ProductReferenceCollection
+		_, err = ProductReference.InsertOne(ctx, productReference)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 
-        // Update seller model with the product reference ID
-        update := bson.M{"$push": bson.M{"product_references": productReference.ID}}
-        _, err = SellerCollection.UpdateOne(ctx, bson.M{"_id": sellerID}, update)
-        if err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-            return
-        }
+		// Update seller model with the product reference ID
+		update := bson.M{"$push": bson.M{"product_references": productReference.ID}}
+		_, err = SellerCollection.UpdateOne(ctx, bson.M{"_id": sellerID}, update)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 
-		 // Update product model with the product reference ID
-        updateProduct := bson.M{"$push": bson.M{"product_references": productReference.ID}}
-        _, err = ProductCollection.UpdateOne(ctx, bson.M{"_id": productID}, updateProduct)
-        if err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-            return
-        }
+		// Update product model with the product reference ID
+		updateProduct := bson.M{"$push": bson.M{"product_references": productReference.ID}}
+		_, err = ProductCollection.UpdateOne(ctx, bson.M{"_id": productID}, updateProduct)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 
-        c.JSON(http.StatusCreated, gin.H{"message": "Product reference added successfully"})
-    }
+		c.JSON(http.StatusCreated, gin.H{"message": "Product reference added successfully"})
+	}
 }
-
 
 func SellerUpdateProfilePictureHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-			
+
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-			
+
 		sellerID, exists := c.Get("uid")
 		if !exists {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "Seller ID not found in context"})
@@ -240,9 +236,6 @@ func SellerUpdateProfilePictureHandler() gin.HandlerFunc {
 			return
 		}
 
-			
-	
-
 		form, err := c.MultipartForm()
 		if err != nil {
 			log.Println("error while multipart")
@@ -257,22 +250,21 @@ func SellerUpdateProfilePictureHandler() gin.HandlerFunc {
 			return
 		}
 
-		profilePicture,err := profile_picture[0].Open();
+		profilePicture, err := profile_picture[0].Open()
 		if err != nil {
 			c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening profile picture: %s", err.Error()))
 			return
 		}
 
-		profilePictureUrl,err := saveFile(profilePicture,profile_picture[0]);
+		profilePictureUrl, err := saveFile(profilePicture, profile_picture[0])
 		if err != nil {
 			c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving profile picture: %s", err.Error()))
 			return
 		}
 		fmt.Println(profilePictureUrl)
-		
 
 		filter := bson.M{"_id": sellerObjID}
-		update := bson.M{"$set": bson.M{"companydetail.profilepicture": profilePictureUrl}} 
+		update := bson.M{"$set": bson.M{"companydetail.profilepicture": profilePictureUrl}}
 		_, err = SellerCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			c.Header("content-type", "application/json")
@@ -283,4 +275,39 @@ func SellerUpdateProfilePictureHandler() gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"success": "Profile Picture updated successfully"})
 
 	}
+}
+
+// find all products for specifc seller stored in sellerRegistered array
+func GetAllProductsForASellerHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		uid, exist := c.Get("uid")
+		if !exist {
+			c.JSON(
+				http.StatusUnauthorized,
+				gin.H{"Error": "You're not authroized to perform this action"})
+		}
+		var sellerId = uid.(string)
+
+		var products []models.Product
+
+		cursor, err := ProductCollection.Find(ctx, bson.M{"sellerregistered": sellerId})
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		err = cursor.All(ctx, &products)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, products)
+
+	}
+
 }
