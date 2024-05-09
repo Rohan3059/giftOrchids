@@ -227,6 +227,19 @@ func ProductViewerAdmin() gin.HandlerFunc {
 
 		product.SKU = c.PostForm("sku")
 		attributesList := c.PostForm("attributes")
+		priceRanges :=c.PostForm("priceRange")
+
+		if(  priceRanges!=""){
+			var productPriceRanges []models.ProductPriceRange
+		if err := json.Unmarshal([]byte(priceRanges), &productPriceRanges); err!=nil{
+			fmt.Println(err)
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Error while parsing price range"})
+			return
+		}
+
+		product.PriceRange = productPriceRanges;
+		}
+
 		
 
 		var attributes []models.AttributeValue
