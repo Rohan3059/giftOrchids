@@ -97,6 +97,7 @@ type Seller struct {
 	ID              primitive.ObjectID `bson:"_id"`
 	Seller_ID       string             `bson:"seller_id"`
 	Company_Name    string             `json:"Company_name"`
+	OwnerDetail     OwnerDetails       `json:"owner_details"`
 	CompanyDetail   CompanyDetail      `json:"companydetail" validate:"required"`
 	MobileNo        string             `json:"mobileno"`
 	Email           string             `json:"email" validate:"required"`
@@ -112,27 +113,38 @@ type Seller struct {
 	IsArchived      bool               `json:"archived"`
 }
 
-type CompanyDetail struct {
-	NameOfOwner     string `json:"nameofowner" validate:"required"`
-	BusinessType    string `json:"businesstype" validate:"required"`
-	YearEstablished string `json:"yearestablished" validate:"required"`
-	CompanyOrigin   string `json:"companyorigin" validate:"required"`
+type OwnerDetails struct {
+	Name             string `json:"name" `
+	Email            string `json:"email" `
+	MobileNo         string `json:"mobileno"`
+	Gender           string `json:"gender"`
+	DateOfBirth      string `json:"dateofbirth"`
+	AadharNumber     string `json:"aadharNumber"`
+	HavePassport     bool   `json:"havePassport"`
+	PassportNo       string `json:"passportNo"`
+	AadharDocument   string `json:"aadharDoc"`
+	PassportDocument string `json:"passportDoc"`
+	PAN              string `json:"pan"`
+	PanDocument      string `json:"panDoc"`
+}
 
-	GSTINORCIN           string            `json:"gstinorcin"`
+type CompanyDetail struct {
+	BusinessType         string            `json:"businesstype" validate:"required"`
+	YearEstablished      string            `json:"yearestablished" validate:"required"`
+	CompanyOrigin        string            `json:"companyorigin" validate:"required"`
+	GSTIN                string            `json:"gstin" `
+	CIN                  string            `json:"cin"`
+	LLPIN                string            `json:"llpin"`
 	BusinessEntity       string            `json:"businessentity"`
 	NoOfEmployee         string            `json:"noofemployee"`
 	HaveBusinessLicenses bool              `json:"havebusinesslicenses"`
 	BusinessLicenses     []BusinessLicense `json:"businesslicenses"`
 	HaveExportPermission bool              `json:"haveexportpermission"`
 	ExportPermission     []BusinessLicense `json:"exportpermission"`
-	AadharNumber         string            `json:"aadharnumber" validate:"required"`
 	PAN                  string            `json:"pan" validate:"required"`
 	PermanentAddress     string            `json:"permanenetaddress" validate:"required"`
-
-	ProfilePicture string `json:"profilepicture"`
-
-	AadharImage string `json:"aadhar_image" validate:"required"`
-	PANImage    string `json:"pan_image" validate:"required"`
+	ProfilePicture       string            `json:"profilepicture"`
+	PANImage             string            `json:"pan_image" validate:"required"`
 }
 
 type BusinessLicense struct {

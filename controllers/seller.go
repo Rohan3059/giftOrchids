@@ -63,14 +63,6 @@ func GetSeller() gin.HandlerFunc {
 				return
 			}
 
-			//retrive companyDetail addhar and pan document and get s3 presign url
-			if sellerDetail.CompanyDetail.AadharImage != "" {
-				aadharPresignURL, err := getPresignURL(sellerDetail.CompanyDetail.AadharImage)
-				if err != nil {
-					log.Println(err)
-				}
-				sellerDetail.CompanyDetail.AadharImage = aadharPresignURL
-			}
 			if sellerDetail.CompanyDetail.PANImage != "" {
 				panPresignURL, err := getPresignURL(sellerDetail.CompanyDetail.PANImage)
 				if err != nil {
@@ -337,4 +329,160 @@ func GetAllProductsForASellerHandler() gin.HandlerFunc {
 
 	}
 
+}
+
+func UpdateSellerBusinessDetails() gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		id, exist := c.Get("uid")
+		if !exist {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "You're not authorized to perform this action"})
+			return
+		}
+
+		sellerId, err := primitive.ObjectIDFromHex(id.(string))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Seller ID"})
+			return
+		}
+
+		var seller models.Seller
+
+		findErr := SellerCollection.FindOne(ctx, bson.M{"_id": sellerId}).Decode(&seller)
+		if findErr != nil {
+			c.Header("content-type", "application/json")
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to find seller with this phone number"})
+			c.Abort()
+			return
+		}
+
+		Company_Name := c.PostForm("Company_name")
+		PAN := c.PostForm("pan")
+		PermanentAddress := c.PostForm("permanenetaddress")
+
+		BusinessType := c.PostForm("businesstype")
+		YearEstablished := c.PostForm("yearestablished")
+		CompanyOrigin := c.PostForm("companyorigin")
+		GSTINORCIN := c.PostForm("gstinorcin")
+		BusinessEntity := c.PostForm("businessentity")
+		NoOfEmployee := c.PostForm("noofemployee")
+
+		seller.Updated_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+
+		seller.Company_Name = Company_Name
+		seller.CompanyDetail.PAN = PAN
+		seller.CompanyDetail.PermanentAddress = PermanentAddress
+		seller.CompanyDetail.BusinessType = BusinessType
+		seller.CompanyDetail.YearEstablished = YearEstablished
+		seller.CompanyDetail.CompanyOrigin = CompanyOrigin
+		seller.CompanyDetail.CIN = GSTINORCIN
+		seller.CompanyDetail.BusinessEntity = BusinessEntity
+		seller.CompanyDetail.NoOfEmployee = NoOfEmployee
+
+		validationErr := validate.Struct(seller)
+		if validationErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": validationErr.Error()})
+			return
+		}
+
+		filter := primitive.M{
+			"_id": sellerId,
+		}
+		update := bson.M{"$set": bson.M{
+			"Company_name":  seller.Company_Name,
+			"companydetail": seller.CompanyDetail,
+		},
+		}
+
+		_, updateError := SellerCollection.UpdateOne(ctx, filter, update)
+
+		if updateError != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": updateError.Error()})
+			return
+		}
+
+		c.String(http.StatusOK, "Seller details updated successfully!")
+
+	}
+}
+
+func SellerPasswordConfirmation() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		id, exist := c.Get("uid")
+		if !exist {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not authorized to perform this action"})
+			return
+		}
+
+		sellerId, err := primitive.ObjectIDFromHex(id.(string))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not authorized to perform this action"})
+			return
+		}
+
+		var seller models.Seller
+
+		password := c.PostForm("password")
+		hashPassword := HashPassword(password)
+
+		filter := bson.M{"_id": sellerId}
+
+		//match id and password
+		err = SellerCollection.FindOne(ctx, filter).Decode(&seller)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not authorized to perform this action"})
+		}
+
+		if seller.Password != hashPassword {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Incorrect Password"})
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": true})
+
+	}
+}
+
+func UpdatePassword() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		id, exist := c.Get("uid")
+		if !exist {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not authorized to perform this action"})
+			return
+		}
+
+		sellerId, err := primitive.ObjectIDFromHex(id.(string))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not authorized to perform this action"})
+			return
+		}
+
+		var seller models.Seller
+
+		password := c.PostForm("password")
+		hashPassword := HashPassword(password)
+		newPassword := c.PostForm("new_password")
+		newPasswordHash := HashPassword(newPassword)
+
+		filter := bson.M{"_id": sellerId, "password": hashPassword}
+		update := bson.M{"$set": bson.M{"password": newPasswordHash}}
+
+		//match id and password
+		err = SellerCollection.FindOneAndUpdate(ctx, filter, update).Decode(&seller)
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Incorrect Password"})
+		}
+
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not authorized to perform this action"})
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Password updated successfully"})
+
+	}
 }

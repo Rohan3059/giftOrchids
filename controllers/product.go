@@ -514,6 +514,44 @@ func SearchProductByQuery() gin.HandlerFunc {
 	}
 }
 
+func GetAllProducts() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var searchProducts []models.Product
+
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
+
+		cursor, err := ProductCollection.Find(ctx, bson.M{})
+		if err != nil {
+			c.IndentedJSON(http.StatusNotFound, "Something went wrong while fetching the data")
+			return
+		}
+		defer cursor.Close(ctx)
+
+		if err := cursor.All(ctx, &searchProducts); err != nil {
+			log.Println(err)
+			c.IndentedJSON(http.StatusBadRequest, "Invalid")
+			return
+		}
+
+		// Iterate over each product and get pre-signed URLs for each image
+		for i := range searchProducts {
+			for j := range searchProducts[i].Image {
+				// Get pre-signed URL for the image
+				url, err := getPresignURL(searchProducts[i].Image[j])
+				if err != nil {
+					log.Println("Error generating pre-signed URL for image:", err)
+					continue
+				}
+				// Update the image URL in the product
+				searchProducts[i].Image[j] = url
+			}
+		}
+
+		c.IndentedJSON(http.StatusOK, searchProducts)
+	}
+}
+
 func ApproveProduct() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

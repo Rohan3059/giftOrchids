@@ -20,6 +20,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
 )
+
 func HashPassword(password string) string {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	if err != nil {
@@ -33,9 +34,7 @@ var validate = validator.New()
 
 var SellerTmpCollection *mongo.Collection = database.ProductData(database.Client, "SellerTmp")
 
-
 /* seller registartion */
-
 
 func SellerRegistrationSendOTP() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -141,29 +140,28 @@ func SellerEmailUpdate() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
-		//log current time 
+		//log current time
 		currentTime := time.Now()
 		fmt.Println("Current Time: ", currentTime)
 		var seller models.Seller
 		mobileno := c.PostForm("mobileno")
 		email := c.PostForm("email")
 		password := HashPassword(c.PostForm("password"))
-		
+
 		if mobileno == "" || email == "" || password == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "All fields are required"})
-			return ;
+			return
 		}
-	
 
 		err := SellerCollection.FindOne(ctx, bson.M{"mobileno": mobileno}).Decode(&seller)
-		
-		if err == nil{
+
+		if err == nil {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": " User already exists with this phone number"})
 			return
 		}
 
 		err = SellerCollection.FindOne(ctx, bson.M{"email": email}).Decode(&seller)
-		if err == nil{
+		if err == nil {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "User already exists with this email"})
 			return
 		}
@@ -179,11 +177,9 @@ func SellerEmailUpdate() gin.HandlerFunc {
 		token, refreshtoken, _ := generate.TokenGenerator(seller.Email, seller.MobileNo, seller.Company_Name, seller.Seller_ID)
 		seller.Token = token
 		seller.Refresh_token = refreshtoken
-		
-		
 
-		_,inserterr := SellerCollection.InsertOne(ctx, seller)
-			finalTime := time.Now()
+		_, inserterr := SellerCollection.InsertOne(ctx, seller)
+		finalTime := time.Now()
 		fmt.Println("Current Time: ", currentTime)
 
 		//total time taken
@@ -192,16 +188,14 @@ func SellerEmailUpdate() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": inserterr.Error()})
 			return
 		}
-		
-		//log current time
-	
 
-		
+		//log current time
+
 		c.JSON(http.StatusOK, gin.H{"message": "Details updated sucessfully"})
 	}
 }
 
-func SellerRegistration() gin.HandlerFunc {
+func SellerCommpanyDetailsUpdate() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -223,20 +217,17 @@ func SellerRegistration() gin.HandlerFunc {
 		}
 
 		Company_Name := c.PostForm("Company_name")
-		NameOfOwner := c.PostForm("nameofowner")
-		AadharNumber := c.PostForm("aadharnumber")
 		PAN := c.PostForm("pan")
 		PermanentAddress := c.PostForm("permanenetaddress")
-		
+
 		BusinessType := c.PostForm("businesstype")
 		YearEstablished := c.PostForm("yearestablished")
 		CompanyOrigin := c.PostForm("companyorigin")
-		GSTINORCIN := c.PostForm("gstinorcin")
+		GSTIN := c.PostForm("gstin")
+		CIN := c.PostForm("cin")
 		BusinessEntity := c.PostForm("businessentity")
 		NoOfEmployee := c.PostForm("noofemployee")
-		
-	
-	
+		LLPIN := c.PostForm("llpin")
 
 		form, err := c.MultipartForm()
 		if err != nil {
@@ -247,88 +238,64 @@ func SellerRegistration() gin.HandlerFunc {
 		panFile := form.File["panFile"]
 		aadharFile := form.File["aadharFile"]
 		profile_picture := form.File["profile_picture"]
-	
 
-		
-
-		if len(panFile) == 0 || len(aadharFile) == 0  || len(profile_picture) == 0 {
+		if len(panFile) == 0 || len(aadharFile) == 0 || len(profile_picture) == 0 {
 			c.String(http.StatusBadRequest, "Please upload all required documents")
 			return
 		}
 
-
-		panHeader,err := panFile[0].Open();
+		panHeader, err := panFile[0].Open()
 		if err != nil {
 			c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening PAN file: %s", err.Error()))
 			return
 		}
-		aadharHeader,err := aadharFile[0].Open();
+		aadharHeader, err := aadharFile[0].Open()
 		if err != nil {
 			c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening Aadhar file: %s", err.Error()))
 			return
 		}
-		
 
-
-		
-		
-	
-		profile_Picture,err := profile_picture[0].Open();
+		profile_Picture, err := profile_picture[0].Open()
 		if err != nil {
 			c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening profile picture: %s", err.Error()))
 			return
-			}
-		
-		profilePicture_Url,err := saveFile(profile_Picture,profile_picture[0]);
+		}
+
+		profilePicture_Url, err := saveFile(profile_Picture, profile_picture[0])
 		if err != nil {
 			c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving profile picture: %s", err.Error()))
 			return
-			} 
-		
+		}
 
-
-
-		panFileUrl,err := saveFile(panHeader,panFile[0]);
+		panFileUrl, err := saveFile(panHeader, panFile[0])
 		if err != nil {
 			c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving PAN file: %s", err.Error()))
 			return
 		}
-		aadharFileUrl,err := saveFile(aadharHeader,aadharFile[0]);
-		if err != nil {
-			c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving Aadhar file: %s", err.Error()))
-			return
-		}
-		
 
-
-		
-
-
-
-		
 		defer panHeader.Close()
 		defer aadharHeader.Close()
 
 		defer profile_Picture.Close()
 
 		seller.Updated_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
-		
+
 		seller.Company_Name = Company_Name
-		seller.CompanyDetail.NameOfOwner = NameOfOwner
-		seller.CompanyDetail.AadharNumber = AadharNumber
 		seller.CompanyDetail.PAN = PAN
 		seller.CompanyDetail.PermanentAddress = PermanentAddress
 		seller.CompanyDetail.ProfilePicture = profilePicture_Url
 		seller.CompanyDetail.BusinessType = BusinessType
 		seller.CompanyDetail.YearEstablished = YearEstablished
 		seller.CompanyDetail.CompanyOrigin = CompanyOrigin
-		seller.CompanyDetail.GSTINORCIN = GSTINORCIN
+		seller.CompanyDetail.GSTIN = GSTIN
+		seller.CompanyDetail.CIN = CIN
+		if LLPIN != "" {
+			seller.CompanyDetail.LLPIN = LLPIN
+		}
 		seller.CompanyDetail.BusinessEntity = BusinessEntity
 		seller.CompanyDetail.NoOfEmployee = NoOfEmployee
-		
-		seller.CompanyDetail.AadharImage = aadharFileUrl
 		seller.CompanyDetail.PANImage = panFileUrl
-		
+
 		token, refreshtoken, _ := generate.TokenGenerator(seller.Email, seller.MobileNo, seller.Company_Name, seller.Seller_ID)
 		seller.Token = token
 		seller.Refresh_token = refreshtoken
@@ -341,19 +308,15 @@ func SellerRegistration() gin.HandlerFunc {
 		filter := primitive.M{
 			"mobileno": mobileno,
 		}
-		update := bson.M{"$set":
-			bson.M{
-				"Company_name" : seller.Company_Name,
-				"user_type ":     seller.User_type,
-				"companydetail": seller.CompanyDetail,
-				"token":         token,
-				"refreshtoken":  refreshtoken,
-			},
-	}
-		
+		update := bson.M{"$set": bson.M{
+			"Company_name":  seller.Company_Name,
+			"companydetail": seller.CompanyDetail,
+			"token":         token,
+			"refreshtoken":  refreshtoken,
+		},
+		}
+
 		_, updateError := SellerCollection.UpdateOne(ctx, filter, update)
-		
-	
 
 		if updateError != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": updateError.Error()})
@@ -366,11 +329,127 @@ func SellerRegistration() gin.HandlerFunc {
 
 }
 
+func SellerOwnerDetailsUpdate() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		var seller models.Seller
+
+		mobileno := c.PostForm("mobileno")
+		if mobileno == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Mobile number is required"})
+			return
+		}
+
+		OwnerName := c.PostForm("ownername")
+		OwnerEmail := c.PostForm("ownereamil")
+		OwnerMobileNo := c.PostForm("ownermobileno")
+		OwnerGender := c.PostForm("gender")
+		dob := c.PostForm("dob")
+		aadharNumber := c.PostForm("aadharNumber")
+		pan := c.PostForm("pan")
+		havePassport, err := strconv.ParseBool(c.PostForm("havepassport"))
+
+		passportNo := c.PostForm("passportNo")
+
+		form, err := c.MultipartForm()
+		if err != nil {
+			log.Println("error while multipart")
+			c.String(http.StatusBadRequest, "get form err: %s", err.Error())
+			return
+		}
+
+		aadharDoc := form.File["aadharDoc"]
+		panDoc := form.File["panDoc"]
+		passportDoc := form.File["passportDoc"]
+
+		aadharDocFile, err := aadharDoc[0].Open()
+		if err != nil {
+			log.Println("error while opening file")
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to process aadhar document"})
+			return
+		}
+		defer aadharDocFile.Close()
+		panDocFile, err := panDoc[0].Open()
+		if err != nil {
+			log.Println("error while opening file")
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to process PAN document"})
+			return
+		}
+		defer panDocFile.Close()
+		passportDocFile, err := passportDoc[0].Open()
+		if err != nil {
+			log.Println("error while opening file")
+
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to process passport document"})
+			return
+		}
+		defer passportDocFile.Close()
+
+		aadharDocUrl, saveError := saveFile(aadharDocFile, aadharDoc[0])
+		if saveError != nil {
+
+			c.JSON(http.StatusServiceUnavailable, gin.H{"Error": "Something went wrong while saving aadharDoc document"})
+			return
+		}
+
+		panDocUrl, saveError := saveFile(panDocFile, panDoc[0])
+		if saveError != nil {
+
+			c.JSON(http.StatusServiceUnavailable, gin.H{"Error": "Something went wrong while saving panDoc document"})
+			return
+		}
+
+		passportDocUrl, saveError := saveFile(passportDocFile, passportDoc[0])
+		if saveError != nil {
+
+			c.JSON(http.StatusServiceUnavailable, gin.H{"Error": "Something went wrong while saving passportDoc document"})
+			return
+		}
+
+		seller.OwnerDetail.Name = OwnerName
+		seller.OwnerDetail.Email = OwnerEmail
+		seller.OwnerDetail.MobileNo = OwnerMobileNo
+		seller.OwnerDetail.Gender = OwnerGender
+		seller.OwnerDetail.DateOfBirth = dob
+		seller.OwnerDetail.AadharNumber = aadharNumber
+		seller.OwnerDetail.PAN = pan
+		seller.OwnerDetail.HavePassport = havePassport
+		seller.OwnerDetail.PassportNo = passportNo
+		seller.OwnerDetail.PassportDocument = passportDocUrl
+		seller.OwnerDetail.AadharDocument = aadharDocUrl
+		seller.OwnerDetail.PanDocument = panDocUrl
+
+		validationErr := validate.Struct(seller)
+		if validationErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": validationErr.Error()})
+			return
+		}
+
+		filter := primitive.M{
+			"mobileno": mobileno,
+		}
+
+		update := bson.M{"$set": bson.M{
+			"owner_details": seller.OwnerDetail,
+		},
+		}
+
+		_, updateError := SellerCollection.UpdateOne(ctx, filter, update)
+		if updateError != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to save owner details, try again "})
+			return
+		}
+
+		c.String(http.StatusOK, "Owner details updated successfully!")
+
+	}
+}
+
 func SellerLicenseUpdate() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		
 
 		var seller models.Seller
 
@@ -407,9 +486,9 @@ func SellerLicenseUpdate() gin.HandlerFunc {
 		}
 
 		var BusinessLicenseArray []models.BusinessLicense
-			LicenseNameArray:=  c.PostFormArray("businessLicensename");
-			LicenseValueArray:= c.PostFormArray("businessLicensevalue");
-			LicenseIssuedDateArray :=  c.PostFormArray("businessLicense_Issueddate");
+		LicenseNameArray := c.PostFormArray("businessLicensename")
+		LicenseValueArray := c.PostFormArray("businessLicensevalue")
+		LicenseIssuedDateArray := c.PostFormArray("businessLicense_Issueddate")
 
 		if HaveBusinessLicenses {
 			if len(business_LicenseFile) == 0 {
@@ -418,77 +497,68 @@ func SellerLicenseUpdate() gin.HandlerFunc {
 			}
 		}
 
-		
 		if len(LicenseNameArray) == 0 || len(LicenseValueArray) == 0 || len(LicenseIssuedDateArray) == 0 {
-				c.String(http.StatusBadRequest, "No business license files provided")
-				return
+			c.String(http.StatusBadRequest, "No business license files provided")
+			return
+		}
+
+		business_LicenseFileUrl := getFileUploadArray(business_LicenseFile)
+
+		if len(business_LicenseFileUrl) == 0 {
+			c.String(http.StatusBadRequest, "No business license files provided")
+			return
+		}
+
+		for i := 0; i < len(LicenseNameArray); i++ {
+
+			var licenseValue string
+			if i < len(LicenseValueArray) {
+				licenseValue = LicenseValueArray[i]
+			} else {
+				licenseValue = "NA"
 			}
 
-
-			business_LicenseFileUrl := getFileUploadArray(business_LicenseFile);	
-
-			if len(business_LicenseFileUrl) == 0 {
-				c.String(http.StatusBadRequest, "No business license files provided")
-				return
+			var issuedDate string
+			if i < len(LicenseIssuedDateArray) {
+				issuedDate = LicenseIssuedDateArray[i]
+			} else {
+				issuedDate = "NA"
 			}
 
-		
-	
-			for i := 0; i < len(LicenseNameArray); i++ {
-				
-				var licenseValue string
-				if i < len(LicenseValueArray) {
-					licenseValue = LicenseValueArray[i]
-				} else {
-					licenseValue = "NA" 
-				}
-
-				
-				var issuedDate string
-				if i < len(LicenseIssuedDateArray) {
-					issuedDate = LicenseIssuedDateArray[i]
-				} else {
-					issuedDate = "NA" 
-				}
-
-				var licenseFileUrl string
-				if i < len(business_LicenseFileUrl) {
-					licenseFileUrl = business_LicenseFileUrl[i]
-				} else {
-					licenseFileUrl = "" 
-				}
-
-				// Create BusinessLicense object
-				BusinessLicenseArray = append(BusinessLicenseArray, models.BusinessLicense{
-					LicenseName:  LicenseNameArray[i],
-					LicenseValue: licenseValue,
-					IssuedDate:   issuedDate,
-					LicenseFile:  licenseFileUrl,
-				})
+			var licenseFileUrl string
+			if i < len(business_LicenseFileUrl) {
+				licenseFileUrl = business_LicenseFileUrl[i]
+			} else {
+				licenseFileUrl = ""
 			}
 
+			// Create BusinessLicense object
+			BusinessLicenseArray = append(BusinessLicenseArray, models.BusinessLicense{
+				LicenseName:  LicenseNameArray[i],
+				LicenseValue: licenseValue,
+				IssuedDate:   issuedDate,
+				LicenseFile:  licenseFileUrl,
+			})
+		}
 
 		var export_PermissionFileArray []models.BusinessLicense
 
 		ExportLicenseArray := c.PostFormArray("exportPermissionname")
 		ExportLicenseValueArray := c.PostFormArray("exportPermissionvalue")
 		ExportLicenseIssuedDateArray := c.PostFormArray("exportPermission_Issueddate")
-		export_PermissionFileUrl := getFileUploadArray(export_PermissionFile);	
+		export_PermissionFileUrl := getFileUploadArray(export_PermissionFile)
 
 		if HaveExportPermission {
 			if len(export_PermissionFile) == 0 {
-				c.JSON(http.StatusBadRequest,  gin.H{"Error": "No export permission files provided"})
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "No export permission files provided"})
 				return
 			}
 
 			if len(ExportLicenseArray) == 0 || len(ExportLicenseValueArray) == 0 || len(ExportLicenseIssuedDateArray) == 0 {
-			c.JSON(http.StatusBadRequest,  gin.H{"Error": "No export permission files provided"})
-			return
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "No export permission files provided"})
+				return
+			}
 		}
-		}
-
-		
-
 
 		for i := 0; i < len(ExportLicenseArray); i++ {
 			// Check if ExportLicenseValueArray has enough elements
@@ -496,14 +566,14 @@ func SellerLicenseUpdate() gin.HandlerFunc {
 			if i < len(ExportLicenseValueArray) {
 				licenseValue = ExportLicenseValueArray[i]
 			} else {
-				licenseValue = "NA" 
+				licenseValue = "NA"
 			}
 
 			var issuedDate string
 			if i < len(ExportLicenseIssuedDateArray) {
 				issuedDate = ExportLicenseIssuedDateArray[i]
 			} else {
-				issuedDate = "NA" 
+				issuedDate = "NA"
 			}
 
 			// Check if export_PermissionFileUrl has enough elements
@@ -511,7 +581,7 @@ func SellerLicenseUpdate() gin.HandlerFunc {
 			if i < len(export_PermissionFileUrl) {
 				licenseFileUrl = export_PermissionFileUrl[i]
 			} else {
-				licenseFileUrl = "" 
+				licenseFileUrl = ""
 			}
 
 			// Create BusinessLicense object
@@ -522,10 +592,8 @@ func SellerLicenseUpdate() gin.HandlerFunc {
 				LicenseFile:  licenseFileUrl,
 			})
 
-
 		}
 
-	
 		seller.CompanyDetail.HaveBusinessLicenses = HaveBusinessLicenses
 		seller.CompanyDetail.HaveExportPermission = HaveExportPermission
 		seller.CompanyDetail.BusinessLicenses = BusinessLicenseArray
@@ -536,9 +604,8 @@ func SellerLicenseUpdate() gin.HandlerFunc {
 		update := bson.M{"$set": bson.M{
 			"companydetail.HaveBusinessLicenses": seller.CompanyDetail.HaveBusinessLicenses,
 			"companydetail.HaveExportPermission": seller.CompanyDetail.HaveExportPermission,
-			"companydetail.BusinessLicenses":    seller.CompanyDetail.BusinessLicenses,
-			"companydetail.ExportPermission":    seller.CompanyDetail.ExportPermission,
-			
+			"companydetail.BusinessLicenses":     seller.CompanyDetail.BusinessLicenses,
+			"companydetail.ExportPermission":     seller.CompanyDetail.ExportPermission,
 		}}
 
 		// Execute update operation
@@ -549,11 +616,9 @@ func SellerLicenseUpdate() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message":"Seller details updated successfully!"})
+		c.JSON(http.StatusOK, gin.H{"message": "Seller details updated successfully!"})
 	}
 }
-
-
 
 func getFileUploadArray(fileHeaders []*multipart.FileHeader) []string {
 
@@ -615,16 +680,7 @@ func ApproveSeller() gin.HandlerFunc {
 	}
 }
 
-
-
-
-
-
-
-
 /* Login functions */
-
-
 
 // pass form data
 func SendLoginOTP() gin.HandlerFunc {
@@ -684,7 +740,7 @@ func LoginValidatePasswordOTP() gin.HandlerFunc {
 		err := SellerCollection.FindOne(ctx, bson.M{"mobileno": user.MobileNo}).Decode(&founduser)
 		defer cancel()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Error":"No account exist with this mobile."})
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "No account exist with this mobile."})
 			return
 		}
 
