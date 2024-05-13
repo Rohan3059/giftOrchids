@@ -418,14 +418,6 @@ func SellerOwnerDetailsUpdate() gin.HandlerFunc {
 			return
 		}
 		defer panDocFile.Close()
-		passportDocFile, err := passportDoc[0].Open()
-		if err != nil {
-			log.Println("error while opening file")
-
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to process passport document"})
-			return
-		}
-		defer passportDocFile.Close()
 
 		aadharDocUrl, saveError := saveFile(aadharDocFile, aadharDoc[0])
 		if saveError != nil {
@@ -441,11 +433,26 @@ func SellerOwnerDetailsUpdate() gin.HandlerFunc {
 			return
 		}
 
-		passportDocUrl, saveError := saveFile(passportDocFile, passportDoc[0])
-		if saveError != nil {
+		if passportDoc != nil {
+			passportDocFile, err := passportDoc[0].Open()
+			if err != nil {
+				log.Println("error while opening file")
 
-			c.JSON(http.StatusServiceUnavailable, gin.H{"Error": "Something went wrong while saving passportDoc document"})
-			return
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to process passport document"})
+				return
+			}
+			defer passportDocFile.Close()
+			if passportDocFile != nil {
+				passportDocUrl, saveError := saveFile(passportDocFile, passportDoc[0])
+				if saveError != nil {
+
+					c.JSON(http.StatusServiceUnavailable, gin.H{"Error": "Something went wrong while saving passportDoc document"})
+					return
+				}
+
+				seller.OwnerDetail.PassportDocument = passportDocUrl
+			}
+
 		}
 
 		seller.OwnerDetail.Name = OwnerName
@@ -457,7 +464,6 @@ func SellerOwnerDetailsUpdate() gin.HandlerFunc {
 		seller.OwnerDetail.PAN = pan
 		seller.OwnerDetail.HavePassport = havePassport
 		seller.OwnerDetail.PassportNo = passportNo
-		seller.OwnerDetail.PassportDocument = passportDocUrl
 		seller.OwnerDetail.AadharDocument = aadharDocUrl
 		seller.OwnerDetail.PanDocument = panDocUrl
 
