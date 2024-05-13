@@ -372,10 +372,10 @@ func SellerOwnerDetailsUpdate() gin.HandlerFunc {
 		}
 
 		OwnerName := c.PostForm("name")
-		OwnerEmail := c.PostForm("eamil")
+		OwnerEmail := c.PostForm("email")
 		OwnerMobileNo := c.PostForm("mobileno")
 		OwnerGender := c.PostForm("gender")
-		dob := c.PostForm("dateobirth")
+		dob := c.PostForm("dateofbirth")
 		aadharNumber := c.PostForm("aadharNumber")
 		pan := c.PostForm("pan")
 		havePassport, err := strconv.ParseBool(c.PostForm("havepassport"))
