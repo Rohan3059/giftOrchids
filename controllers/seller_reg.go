@@ -467,12 +467,6 @@ func SellerOwnerDetailsUpdate() gin.HandlerFunc {
 		seller.OwnerDetail.AadharDocument = aadharDocUrl
 		seller.OwnerDetail.PanDocument = panDocUrl
 
-		validationErr := validate.Struct(seller)
-		if validationErr != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"Error": validationErr.Error()})
-			return
-		}
-
 		filter := primitive.M{
 			"mobileno": mobileno,
 		}
