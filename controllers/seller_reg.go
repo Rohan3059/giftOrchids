@@ -337,23 +337,12 @@ func SellerCommpanyDetailsUpdate() gin.HandlerFunc {
 		seller.CompanyDetail.PANImage = panFileUrl
 		seller.CompanyDetail.GSTINDoc = gstinFileUrl
 
-		token, refreshtoken, _ := generate.TokenGenerator(seller.Email, seller.MobileNo, seller.Company_Name, seller.Seller_ID)
-		seller.Token = token
-		seller.Refresh_token = refreshtoken
-		validationErr := validate.Struct(seller)
-		if validationErr != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"Error": validationErr.Error()})
-			return
-		}
-
 		filter := primitive.M{
 			"mobileno": mobileno,
 		}
 		update := bson.M{"$set": bson.M{
-			"Company_name":  seller.Company_Name,
+			"company_name":  seller.Company_Name,
 			"companydetail": seller.CompanyDetail,
-			"token":         token,
-			"refreshtoken":  refreshtoken,
 		},
 		}
 
@@ -382,11 +371,11 @@ func SellerOwnerDetailsUpdate() gin.HandlerFunc {
 			return
 		}
 
-		OwnerName := c.PostForm("ownername")
-		OwnerEmail := c.PostForm("ownereamil")
-		OwnerMobileNo := c.PostForm("ownermobileno")
+		OwnerName := c.PostForm("name")
+		OwnerEmail := c.PostForm("eamil")
+		OwnerMobileNo := c.PostForm("mobileno")
 		OwnerGender := c.PostForm("gender")
-		dob := c.PostForm("dob")
+		dob := c.PostForm("dateobirth")
 		aadharNumber := c.PostForm("aadharNumber")
 		pan := c.PostForm("pan")
 		havePassport, err := strconv.ParseBool(c.PostForm("havepassport"))
@@ -472,7 +461,7 @@ func SellerOwnerDetailsUpdate() gin.HandlerFunc {
 		}
 
 		update := bson.M{"$set": bson.M{
-			"owner_details": seller.OwnerDetail,
+			"ownerdetail": seller.OwnerDetail,
 		},
 		}
 
