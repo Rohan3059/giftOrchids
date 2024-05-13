@@ -144,6 +144,9 @@ type CompanyDetail struct {
 	PAN                  string            `json:"pan" validate:"required"`
 	PermanentAddress     string            `json:"permanenetaddress" validate:"required"`
 	ProfilePicture       string            `json:"profilepicture"`
+	GSTINDoc             string            `json:"gstindoc"`
+	CINDoc               string            `json:"cindoc"`
+	LLPINDoc             string            `json:"llpindoc"`
 	PANImage             string            `json:"pan_image" validate:"required"`
 }
 

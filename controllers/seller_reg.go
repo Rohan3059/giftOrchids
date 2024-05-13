@@ -236,10 +236,10 @@ func SellerCommpanyDetailsUpdate() gin.HandlerFunc {
 			return
 		}
 		panFile := form.File["panFile"]
-		aadharFile := form.File["aadharFile"]
+		gstinFile := form.File["gstinFile"]
 		profile_picture := form.File["profile_picture"]
 
-		if len(panFile) == 0 || len(aadharFile) == 0 || len(profile_picture) == 0 {
+		if len(panFile) == 0 || len(gstinFile) == 0 || len(profile_picture) == 0 {
 			c.String(http.StatusBadRequest, "Please upload all required documents")
 			return
 		}
@@ -249,7 +249,7 @@ func SellerCommpanyDetailsUpdate() gin.HandlerFunc {
 			c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening PAN file: %s", err.Error()))
 			return
 		}
-		aadharHeader, err := aadharFile[0].Open()
+		gstinHeader, err := gstinFile[0].Open()
 		if err != nil {
 			c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening Aadhar file: %s", err.Error()))
 			return
@@ -273,8 +273,48 @@ func SellerCommpanyDetailsUpdate() gin.HandlerFunc {
 			return
 		}
 
+		gstinFileUrl, err := saveFile(gstinHeader, gstinFile[0])
+		if err != nil {
+			c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving GSTIN file: %s", err.Error()))
+			return
+		}
+
+		if LLPIN != "" {
+			LLPINFile := form.File["llpinFile"]
+			LLPINHeader, err := LLPINFile[0].Open()
+			if err != nil {
+				c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening LLPIN file: %s", err.Error()))
+				return
+			}
+			LLPINFileUrl, err := saveFile(LLPINHeader, LLPINFile[0])
+			if err != nil {
+				c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving PAN file: %s", err.Error()))
+				return
+			}
+			seller.CompanyDetail.LLPIN = LLPINFileUrl
+
+			defer LLPINHeader.Close()
+
+		}
+
+		if CIN != "" {
+			CINFile := form.File["cinFile"]
+			CINHeader, err := CINFile[0].Open()
+			if err != nil {
+				c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening CIN file: %s", err.Error()))
+				return
+			}
+			CINFileUrl, err := saveFile(CINHeader, CINFile[0])
+			if err != nil {
+				c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving CIN file: %s", err.Error()))
+				return
+			}
+			seller.CompanyDetail.CIN = CINFileUrl
+			defer CINHeader.Close()
+		}
+
 		defer panHeader.Close()
-		defer aadharHeader.Close()
+		defer gstinHeader.Close()
 
 		defer profile_Picture.Close()
 
@@ -295,6 +335,7 @@ func SellerCommpanyDetailsUpdate() gin.HandlerFunc {
 		seller.CompanyDetail.BusinessEntity = BusinessEntity
 		seller.CompanyDetail.NoOfEmployee = NoOfEmployee
 		seller.CompanyDetail.PANImage = panFileUrl
+		seller.CompanyDetail.GSTINDoc = gstinFileUrl
 
 		token, refreshtoken, _ := generate.TokenGenerator(seller.Email, seller.MobileNo, seller.Company_Name, seller.Seller_ID)
 		seller.Token = token
