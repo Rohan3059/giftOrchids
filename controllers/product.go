@@ -476,6 +476,7 @@ func SearchProductByQuery() gin.HandlerFunc {
 		if productName != "" {
 			filter = append(filter, primitive.M{utils.ProductName: productName})
 		}
+		filter = append(filter, primitive.M{"approved": true})
 		finalFilter := primitive.M{}
 		if len(filter) > 0 {
 			finalFilter = primitive.M{"$and": filter}

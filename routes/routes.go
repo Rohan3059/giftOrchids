@@ -23,7 +23,6 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.GET("/category", controllers.GetSingleCategory())
 	incomingRoutes.PUT("/updatecategory", controllers.EditCategory())
 	incomingRoutes.GET("/getproduct", controllers.GetProduct())
-	incomingRoutes.GET("/products", controllers.GetAllProducts())
 	incomingRoutes.GET("/product", controllers.SearchProductByQuery())
 	incomingRoutes.POST("/update-user", controllers.UpdateUserDetails())
 	incomingRoutes.POST("/post-requirement", controllers.CreateRequirementMessage())
@@ -89,6 +88,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 
 	incomingRoutes.POST("/admin/add-feed", controllers.PostFeedHandler())
 	incomingRoutes.DELETE("/admin/delete-feed", controllers.DeleteFeed())
+	incomingRoutes.GET("/admin/products", controllers.GetAllProducts())
 
 	//incomingRoutes.GET("/getcategory", controllers.GetCategory())
 }
