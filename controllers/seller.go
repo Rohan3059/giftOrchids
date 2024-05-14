@@ -71,6 +71,62 @@ func GetSeller() gin.HandlerFunc {
 				sellerDetail.CompanyDetail.PANImage = panPresignURL
 			}
 
+			if sellerDetail.CompanyDetail.GSTINDoc != "" {
+				gstPresignURL, err := getPresignURL(sellerDetail.CompanyDetail.GSTINDoc)
+				if err != nil {
+					log.Println(err)
+				}
+				sellerDetail.CompanyDetail.GSTINDoc = gstPresignURL
+			}
+
+			if sellerDetail.CompanyDetail.ProfilePicture != "" {
+				profilePresignURL, err := getPresignURL(sellerDetail.CompanyDetail.ProfilePicture)
+				if err != nil {
+					log.Println(err)
+				}
+				sellerDetail.CompanyDetail.ProfilePicture = profilePresignURL
+			}
+
+			if sellerDetail.CompanyDetail.CINDoc != "" {
+				ciPresignURL, err := getPresignURL(sellerDetail.CompanyDetail.CINDoc)
+				if err != nil {
+					log.Println(err)
+				}
+				sellerDetail.CompanyDetail.CINDoc = ciPresignURL
+			}
+
+			if sellerDetail.CompanyDetail.LLPINDoc != "" {
+				llpPresignURL, err := getPresignURL(sellerDetail.CompanyDetail.LLPINDoc)
+				if err != nil {
+					log.Println(err)
+				}
+				sellerDetail.CompanyDetail.LLPINDoc = llpPresignURL
+			}
+
+			if sellerDetail.OwnerDetail.AadharDocument != "" {
+				aadharPresignURL, err := getPresignURL(sellerDetail.OwnerDetail.AadharDocument)
+				if err != nil {
+					log.Println(err)
+				}
+				sellerDetail.OwnerDetail.AadharDocument = aadharPresignURL
+			}
+
+			if sellerDetail.OwnerDetail.PanDocument != "" {
+				panPresignURL, err := getPresignURL(sellerDetail.OwnerDetail.PanDocument)
+				if err != nil {
+					log.Println(err)
+				}
+				sellerDetail.OwnerDetail.PanDocument = panPresignURL
+			}
+
+			if sellerDetail.OwnerDetail.PassportDocument != "" {
+				passportPresignURL, err := getPresignURL(sellerDetail.OwnerDetail.PassportDocument)
+				if err != nil {
+					log.Println(err)
+				}
+				sellerDetail.OwnerDetail.PassportDocument = passportPresignURL
+			}
+
 			c.JSON(http.StatusOK, sellerDetail)
 			return
 		}
@@ -427,7 +483,6 @@ func SellerPasswordConfirmation() gin.HandlerFunc {
 		var seller models.Seller
 
 		password := c.PostForm("password")
-		hashPassword := HashPassword(password)
 
 		filter := bson.M{"_id": sellerId}
 
@@ -438,8 +493,11 @@ func SellerPasswordConfirmation() gin.HandlerFunc {
 			return
 		}
 
-		if seller.Password != hashPassword {
+		validPassword, msg := Verifypassword(password, seller.Password)
+
+		if !validPassword {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "Incorrect Password"})
+			fmt.Print(msg)
 			return
 		}
 

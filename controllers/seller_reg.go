@@ -789,6 +789,7 @@ func LoginValidatePasswordOTP() gin.HandlerFunc {
 
 func Verifypassword(userPassword string, givenPassword string) (bool, string) {
 	err := bcrypt.CompareHashAndPassword([]byte(givenPassword), []byte(userPassword))
+	fmt.Println(err)
 	valid := true
 	msg := ""
 	if err != nil {
