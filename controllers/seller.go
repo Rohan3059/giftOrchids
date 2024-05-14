@@ -435,10 +435,12 @@ func SellerPasswordConfirmation() gin.HandlerFunc {
 		err = SellerCollection.FindOne(ctx, filter).Decode(&seller)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not authorized to perform this action"})
+			return
 		}
 
 		if seller.Password != hashPassword {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "Incorrect Password"})
+			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{"message": true})
