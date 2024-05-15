@@ -14,6 +14,7 @@ import (
 	"github.com/kravi0/BizGrowth-backend/utils"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var SupportTickerCollection = database.ProductData(database.Client, "CustomerSupportTicket")
@@ -156,29 +157,37 @@ func UpdateTicketStatus() gin.HandlerFunc {
 		//check status
 		switch statusRequest {
 		case "Initiated":
+			status = utils.Initiated
 		case "initiated":
 			status = utils.Initiated
 		case "in progress":
+			status = utils.InProgress
 		case "In Progress":
 			status = utils.InProgress
 		case "Closed":
+			status = utils.Closed
 		case "closed":
 			status = utils.Closed
 		default:
 		}
 
-		filter := bson.M{"_id": ticketId}
+		filter := bson.M{"ticketid": ticketId}
 
 		update := bson.M{"$set": bson.M{
 			"status":     status,
 			"updated_at": updatedAt,
 		}}
 
-		_, updateErr := SupportTickerCollection.UpdateOne(ctx, filter, update)
+		var ticket models.CustomerSupportTicket
+
+		updateErr := SupportTickerCollection.FindOneAndUpdate(ctx, filter, update).Decode(&ticket)
 		if updateErr != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": updateErr.Error()})
-			return
+			if updateErr == mongo.ErrNoDocuments {
+				c.JSON(http.StatusNotFound, gin.H{"Error": "Ticket not found"})
+				return
+			}
 		}
+
 		c.JSON(http.StatusOK, gin.H{
 			"message": "Ticket updated successfully",
 		})
