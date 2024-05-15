@@ -22,6 +22,14 @@ const (
 	BsonID      = "_id"
 )
 
+const (
+	Initiated = "Initiated"
+
+	InProgress = "In Progress"
+
+	Closed = "Closed"
+)
+
 //user constant
 const (
 	Admin = "ADMIN"

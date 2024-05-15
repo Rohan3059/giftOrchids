@@ -220,8 +220,20 @@ type CustomerSupportTicket struct {
 	Message         string             `json:"message" bson:"message"`
 	Status          string             `json:"status" bson:"status" `
 	Attachments     []string           `json:"attachments" bson:"attachments"`
-	SupportMessage  []string           `json:"supportmessage" bson:"supportmessage"`
+	ChatMessage     primitive.ObjectID `json:"chatmessage" bson:"chatmessage"`
 	CreatedAt       time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt       time.Time          `json:"updated_at" bson:"updated_at"`
 	AssignedSupport string             `json:"assignedsupport" bson:"assignedsupport"`
+}
+
+type SupportChatMessage struct {
+	SupportChatId   primitive.ObjectID `bson:"_id"`
+	SupportTicketId string             `bson:"ticketId" json:"ticketId"`
+	Messages        []ChatMessage      `bson:"messages" json:"messages"`
+}
+
+type ChatMessage struct {
+	Message string    `json:"message" bson:"message"`
+	Sender  string    `json:"sender" bson:"sender"`
+	SentAt  time.Time `json:"sent_at" bson:"sent_at" `
 }

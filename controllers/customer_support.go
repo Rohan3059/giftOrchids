@@ -11,11 +11,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/kravi0/BizGrowth-backend/database"
 	"github.com/kravi0/BizGrowth-backend/models"
+	"github.com/kravi0/BizGrowth-backend/utils"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 var SupportTickerCollection = database.ProductData(database.Client, "CustomerSupportTicket")
+var SupportChatMessage = database.ProductData(database.Client, "SupportChatMessage")
 
 func GenerateUniqueTicketID(ctx context.Context, suffix string) (string, error) {
 	// Generate the ticket ID based on creation timestamp and name.
@@ -136,7 +138,7 @@ func GetTickets() gin.HandlerFunc {
 }
 
 // @Summary Update ticket status
-func UpdateTicket() gin.HandlerFunc {
+func UpdateTicketStatus() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -148,10 +150,27 @@ func UpdateTicket() gin.HandlerFunc {
 			return
 		}
 
+		statusRequest := c.PostForm("status")
+		var status string
+
+		//check status
+		switch statusRequest {
+		case "Initiated":
+		case "initiated":
+			status = utils.Initiated
+		case "in progress":
+		case "In Progress":
+			status = utils.InProgress
+		case "Closed":
+		case "closed":
+			status = utils.Closed
+		default:
+		}
+
 		filter := bson.M{"_id": ticketId}
 
 		update := bson.M{"$set": bson.M{
-			"status":     c.PostForm("status"),
+			"status":     status,
 			"updated_at": updatedAt,
 		}}
 
@@ -197,8 +216,6 @@ func GetTicketById() gin.HandlerFunc {
 	}
 }
 
-//assign ticket
-
 func AssignTicket() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -232,46 +249,6 @@ func AssignTicket() gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "Ticket updated successfully",
 		})
-	}
-}
-
-// add reply to ticket
-func AddReply() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		ticketId := c.Param("id")
-		var ticket models.CustomerSupportTicket
-		err := SupportTickerCollection.FindOne(ctx, bson.M{"_id": ticketId}).Decode(&ticket)
-
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
-			return
-		}
-		message := c.PostForm("support_reply")
-		updatedAt, err := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
-			return
-		}
-
-		filter := bson.M{"_id": ticketId}
-
-		update := bson.M{"$push": bson.M{
-			"supportmessage": message,
-		}, "$set": bson.M{
-			"updated_at": updatedAt,
-		}}
-
-		_, updateErr := SupportTickerCollection.UpdateOne(ctx, filter, update)
-		if updateErr != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": updateErr.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"message": "Ticket updated successfully",
-		})
-
 	}
 }
 
@@ -313,4 +290,141 @@ func GetTicketCounts() gin.HandlerFunc {
 
 		c.JSON(http.StatusOK, counts)
 	}
+}
+
+func AddMessage() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		ticketId := c.Param("id")
+		var name = "Admin"
+
+		uid, exist := c.Get("uid")
+		if !exist {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not authorized to perform this action"})
+			return
+		}
+
+		//objectid
+		id, err := primitive.ObjectIDFromHex(uid.(string))
+
+		if err != nil {
+
+			c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
+			return
+		}
+
+		//find seller
+		var foundSeller models.Seller
+		err = SellerCollection.FindOne(ctx, bson.M{"_id": id}).Decode(&foundSeller)
+		if err == nil {
+			if foundSeller.User_type == utils.Seller {
+				name = foundSeller.Company_Name
+			}
+		}
+
+		if ticketId == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "ticket id is required"})
+			return
+		}
+
+		var ticket models.CustomerSupportTicket
+		findErr := SupportTickerCollection.FindOne(ctx, bson.M{"ticketid": ticketId}).Decode(&ticket)
+		if findErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Invalid support ticket"})
+			return
+		}
+
+		var message models.ChatMessage
+		message.SentAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		message.Sender = name
+
+		if err := c.BindJSON(&message); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		updatedAt, err := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+			return
+		}
+
+		var existingChatMessage models.SupportChatMessage
+
+		finderr := SupportChatMessage.FindOne(ctx, bson.M{"ticketId": ticketId}).Decode(&existingChatMessage)
+		if finderr != nil {
+
+			//create new
+			chatMessage := models.SupportChatMessage{
+				SupportTicketId: ticketId,
+				Messages:        []models.ChatMessage{message},
+			}
+			_, insertErr := SupportChatMessage.InsertOne(ctx, chatMessage)
+			if insertErr != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"Error": insertErr.Error()})
+				return
+			}
+			//update SupportTicker with id of SupportChatMessage
+
+			_, updateErr := SupportTickerCollection.UpdateOne(ctx, bson.M{"_id": ticketId}, bson.M{"$set": bson.M{
+				"chatmessage": chatMessage.SupportChatId,
+				"updated_at":  updatedAt,
+			}})
+			if updateErr != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"Error": updateErr.Error()})
+				return
+			}
+		}
+
+		//update and update chatmessage too
+
+		_, updateErr := SupportChatMessage.UpdateOne(ctx, bson.M{"ticketId": ticketId}, bson.M{"$push": bson.M{
+			"messages": message,
+		}})
+		if updateErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": updateErr.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Message has been sent successfully",
+		})
+
+	}
+
+}
+
+func GetChatMessagesHandler() gin.HandlerFunc {
+
+	return func(c *gin.Context) {
+
+		ticketID := c.Param("id")
+
+		if ticketID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "ticket id is required"})
+			return
+		}
+
+		messages, err := GetChatMessagesByTicketID(ticketID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"messages": messages})
+	}
+}
+
+func GetChatMessagesByTicketID(ticketID string) ([]models.ChatMessage, error) {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var supportChatMessage models.SupportChatMessage
+	err := SupportChatMessage.FindOne(ctx, bson.M{"ticketId": ticketID}).Decode(&supportChatMessage)
+	if err != nil {
+		return nil, err
+	}
+
+	return supportChatMessage.Messages, nil
 }

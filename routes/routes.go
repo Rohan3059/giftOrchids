@@ -37,8 +37,6 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/create-ticket", controllers.CreateTicket())
 	incomingRoutes.GET("/get-feeds", controllers.GetAllFeedsHandler())
 
-	incomingRoutes.GET("/ticket/:id", controllers.GetTicketById())
-
 	incomingRoutes.POST("/add-admin", controllers.RegisterAdmin())
 
 	//incomingRoutes.GET("/getseller", controllers.GetSeller())
@@ -85,6 +83,10 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/admin/add-attributeType", controllers.AddAttributeType())
 	incomingRoutes.GET("/admin/getTickets", controllers.GetTickets())
 	incomingRoutes.GET("/admin/tickets/count", controllers.GetTicketCounts())
+	incomingRoutes.GET("/admin/ticket/:id", controllers.GetTicketById())
+	incomingRoutes.POST("/admin/ticket/chat/message/:id", controllers.AddMessage())
+	incomingRoutes.POST("/admin/ticket/update/status/:id", controllers.UpdateTicketStatus())
+	incomingRoutes.GET("/admin/ticket/chat/messages/:id", controllers.GetChatMessagesHandler())
 
 	incomingRoutes.POST("/admin/add-feed", controllers.PostFeedHandler())
 	incomingRoutes.DELETE("/admin/delete-feed", controllers.DeleteFeed())
