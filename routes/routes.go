@@ -84,6 +84,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/admin/approve-review", controllers.ApproveReview())
 	incomingRoutes.GET("/admin/all-reviews", controllers.GetReviews())
 	incomingRoutes.POST("/admin/add-attributeType", controllers.AddAttributeType())
+	incomingRoutes.PUT("/admin/update-attribute/:id", controllers.UpdateAttributeType())
 	incomingRoutes.GET("/admin/getTickets", controllers.GetTickets())
 	incomingRoutes.GET("/admin/tickets/count", controllers.GetTicketCounts())
 	incomingRoutes.GET("/admin/ticket/:id", controllers.GetTicketById())

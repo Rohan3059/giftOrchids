@@ -15,7 +15,6 @@ import (
 
 var AttributesCollection *mongo.Collection = database.ProductData(database.Client, "AttributeType")
 
-
 func GetAllAttributes() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -36,7 +35,6 @@ func GetAllAttributes() gin.HandlerFunc {
 
 // @Summary Add new attribute type to the
 
-
 func AddAttributeType() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -47,10 +45,10 @@ func AddAttributeType() gin.HandlerFunc {
 			return
 		}
 		attribute.ID = primitive.NewObjectID()
-		if attribute.Attribute_Name == "" || attribute.Attribute_Code == ""  {
+		if attribute.Attribute_Name == "" || attribute.Attribute_Code == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "All fields are required"})
 			return
-			
+
 		}
 		_, err := AttributesCollection.InsertOne(ctx, attribute)
 		if err != nil {
@@ -88,5 +86,45 @@ func GetAttributeByID() gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, attribute)
+	}
+}
+
+//update attribute
+
+func UpdateAttributeType() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		id := c.Param("id")
+		if id == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid ID"})
+			return
+		}
+		oid, err := primitive.ObjectIDFromHex(id)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid ID"})
+			return
+		}
+		var attribute models.AttributeType
+		err = AttributesCollection.FindOne(ctx, bson.M{"_id": oid}).Decode(&attribute)
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"Error": "Attribute not found"})
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": err})
+			return
+		}
+		if err := c.BindJSON(&attribute); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": err})
+			return
+		}
+		attribute.ID = oid
+		_, err = AttributesCollection.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": attribute})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": err})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Attribute has been updated succesfully"})
 	}
 }
