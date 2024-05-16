@@ -150,6 +150,56 @@ func GetCategory() gin.HandlerFunc {
 	}
 }
 
+func AdminGetCategoryHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Aggregation pipeline to perform $lookup with parent_category collection
+		pipeline := []bson.M{
+			{
+				"$lookup": bson.M{
+					"from":         "Categories",
+					"localField":   "parent_category",
+					"foreignField": "_id",
+					"as":           "parent_category_details",
+				},
+			},
+		}
+
+		// Execute aggregation pipeline
+		cursor, err := CategoriesCollection.Aggregate(ctx, pipeline)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, "Something went wrong. Please try again.")
+			return
+		}
+		defer cursor.Close(ctx)
+
+		var results []models.Categories
+
+		// Decode the results into category slice
+		if err := cursor.All(ctx, &results); err != nil {
+			c.JSON(http.StatusInternalServerError, "Something went wrong while fetching data. Please try again.")
+			return
+		}
+
+		// Loop through the cursor and get image of each category
+		for i := range results {
+			url, err := getPresignURL(results[i].Category_image)
+			if err != nil {
+				log.Println("Error generating pre-signed URL for image:", err)
+				continue
+			}
+			if url != "" {
+				results[i].Category_image = url
+			}
+		}
+
+		c.JSON(http.StatusOK, results)
+	}
+}
+
 func GetSingleCategory() gin.HandlerFunc {
 	// Extract category ID from query parameter
 	return func(c *gin.Context) {
