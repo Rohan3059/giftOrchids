@@ -395,7 +395,7 @@ func ApproveCategory() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "Category approved successfully"})
+		c.JSON(http.StatusOK, gin.H{"message": "Category status updated successfully"})
 
 	}
 

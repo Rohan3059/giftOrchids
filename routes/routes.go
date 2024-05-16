@@ -54,6 +54,8 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/seller/licenseDetailsUpdate", controllers.SellerLicenseUpdate())
 	incomingRoutes.POST("/seller-login", controllers.SendLoginOTP())
 
+	incomingRoutes.GET("/get-docs", controllers.DownloadSellerDocs())
+
 	incomingRoutes.Use(middleware.UserAuthentication())
 	incomingRoutes.POST("/product-enquiry", controllers.EnquiryHandler())
 	incomingRoutes.GET("/get-enquiry", controllers.GetUserEnquiries())
@@ -91,6 +93,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 
 	incomingRoutes.POST("/admin/add-feed", controllers.PostFeedHandler())
 	incomingRoutes.DELETE("/admin/delete-feed", controllers.DeleteFeed())
+	incomingRoutes.POST("/admin/update-feed", controllers.UpdateFeed())
 	incomingRoutes.GET("/admin/products", controllers.GetAllProducts())
 
 	//incomingRoutes.GET("/getcategory", controllers.GetCategory())

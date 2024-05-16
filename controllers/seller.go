@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -545,4 +546,168 @@ func UpdatePassword() gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"message": "Password updated successfully"})
 
 	}
+}
+
+func DownloadSellerDocs() gin.HandlerFunc {
+
+	return func(c *gin.Context) {
+
+		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		docType := c.Query("doc")
+		id := c.Query("sellerId")
+
+		if checkSeller(ctx, c) {
+
+			uid, exist := c.Get("uid")
+
+			if !exist {
+
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not authorized to perform this action"})
+				return
+			}
+			sellerId, err := primitive.ObjectIDFromHex(uid.(string))
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not authorized to perform this action"})
+				return
+			}
+
+			filter := bson.M{"_id": sellerId}
+
+			var foundSeller models.Seller
+
+			//find seller
+			err = SellerCollection.FindOne(ctx, filter).Decode(&foundSeller)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not authorized to perform this action"})
+
+			}
+
+			byteRes, err := SellerDocDownload(c, sellerId, docType)
+
+			if err != nil {
+
+				c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
+
+			}
+
+			c.Data(http.StatusOK, "application/pdf", byteRes)
+
+		} else {
+			sellerId, err := primitive.ObjectIDFromHex(id)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not authorized to perform this action"})
+				return
+			}
+			byteRes, err := SellerDocDownload(c, sellerId, docType)
+
+			if err != nil {
+
+				c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
+				return
+
+			}
+
+			c.Data(http.StatusOK, "application/pdf", byteRes)
+
+		}
+
+	}
+}
+
+func SellerDocDownload(c *gin.Context, sellerId primitive.ObjectID, docType string) ([]byte, error) {
+
+	var seller models.Seller
+
+	filter := bson.M{"_id": sellerId}
+
+	err := SellerCollection.FindOne(context.TODO(), filter).Decode(&seller)
+	if err != nil {
+
+		return nil, err
+	}
+
+	if docType == "aadhar" {
+
+		aadharFile, err := DownloadPDFFromS3(seller.OwnerDetail.AadharDocument)
+
+		return aadharFile, err
+
+	}
+
+	if docType == "owner_pan" {
+
+		ownerPanFile, err := DownloadPDFFromS3(seller.OwnerDetail.PanDocument)
+
+		return ownerPanFile, err
+	}
+
+	if docType == "company_pan" {
+
+		companyPanFile, err := DownloadPDFFromS3(seller.CompanyDetail.PANImage)
+
+		return companyPanFile, err
+	}
+
+	if docType == "gstin" {
+
+		companyGstFile, err := DownloadPDFFromS3(seller.CompanyDetail.GSTINDoc)
+
+		return companyGstFile, err
+	}
+
+	if docType == "cin" {
+
+		companyCinFile, err := DownloadPDFFromS3(seller.CompanyDetail.CINDoc)
+
+		return companyCinFile, err
+	}
+
+	if docType == "llpin" {
+
+		companyLlpinFile, err := DownloadPDFFromS3(seller.CompanyDetail.LLPINDoc)
+
+		return companyLlpinFile, err
+	}
+
+	return nil, errors.New("unable to download file")
+
+}
+
+//download all files in a zip
+
+func DownloadAllFiles() gin.HandlerFunc {
+
+	return func(c *gin.Context) {
+
+		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		id := c.Query("id")
+
+		sellerId, err := primitive.ObjectIDFromHex(id)
+
+		if err != nil {
+
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not authorized to perform this action"})
+
+		}
+
+		//find seller and all docs
+
+		var seller models.Seller
+
+		filter := bson.M{"_id": sellerId}
+
+		err = SellerCollection.FindOne(ctx, filter).Decode(&seller)
+
+		if err != nil {
+
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not authorized to perform this action"})
+
+		}
+
+	}
+
 }

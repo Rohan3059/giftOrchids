@@ -101,6 +101,34 @@ func extractKeyFromURL(url string) string {
 	return ""
 }
 
+func DownloadPDFFromS3(s3Url string) ([]byte, error) {
+	// Create a new AWS session
+	sess := session.Must(session.NewSession())
+	bucketName := os.Getenv("AWS_BUCKET_NAME")
+
+	// Create a downloader with the S3 client
+	downloader := s3manager.NewDownloader(sess)
+
+	keyName := extractKeyFromURL(s3Url)
+
+	// Input parameters for the S3 object you want to download
+	input := &s3.GetObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(keyName),
+	}
+
+	// Create a buffer to hold the downloaded file contents
+	buffer := aws.NewWriteAtBuffer([]byte{})
+
+	// Download the file from S3 and write it to the buffer
+	_, err := downloader.Download(buffer, input)
+	if err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
 func getPresignURL(s3Url string) (string, error) {
 	// Create an S3 service client using the provided session
 
@@ -159,9 +187,10 @@ func getPresignURL(s3Url string) (string, error) {
 	}
 
 	req, _ := s3client.GetObjectRequest(&s3.GetObjectInput{
-		Bucket:              aws.String(bucketName),
-		Key:                 aws.String(keyName),
-		ResponseContentType: aws.String(contentType),
+		Bucket:                  aws.String(bucketName),
+		Key:                     aws.String(keyName),
+		ResponseContentType:     aws.String(contentType),
+		ResponseContentEncoding: aws.String("base64"),
 	})
 
 	q := req.HTTPRequest.URL.Query()
