@@ -16,30 +16,30 @@ import (
 )
 
 var CategoriesCollection *mongo.Collection = database.ProductData(database.Client, "Categories")
+
 type CategoryWithChildren struct {
-    Category       models.Categories
-    ChildCategories []models.Categories
+	Category        models.Categories
+	ChildCategories []models.Categories
 }
+
 func AddCategory() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		var category models.Categories
-		
+
 		category.Category_ID = primitive.NewObjectID()
 
 		categoryName := c.PostForm("category")
 
 		parentCategoryId := c.PostForm("parent_category")
 
-		
-
 		if categoryName == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "category name is required"})
 			return
 		}
 
-		if parentCategoryId!=""  {
+		if parentCategoryId != "" {
 			category.Parent_Category, _ = primitive.ObjectIDFromHex(parentCategoryId)
 		}
 		category.Category = categoryName
@@ -48,7 +48,7 @@ func AddCategory() gin.HandlerFunc {
 		if err != nil {
 			log.Println("error while multipart")
 			c.String(http.StatusBadRequest, "get form err: %s", err.Error())
-			
+
 		}
 
 		image := form.File["image"]
@@ -57,13 +57,13 @@ func AddCategory() gin.HandlerFunc {
 			return
 		}
 
-		categoryImageHeader,err := image[0].Open()
+		categoryImageHeader, err := image[0].Open()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": err})
 			return
 		}
 		defer categoryImageHeader.Close()
-		
+
 		categoryImage, err := saveFile(categoryImageHeader, image[0])
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": err})
@@ -74,7 +74,7 @@ func AddCategory() gin.HandlerFunc {
 		category.Category_Description = c.PostForm("category_description")
 
 		category.Approved = false
-		
+
 		count, err := CategoriesCollection.CountDocuments(ctx, bson.M{"category": category.Category})
 		defer cancel()
 		if err != nil {
@@ -86,7 +86,7 @@ func AddCategory() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "Category already exist with this name"})
 			return
 		}
-	
+
 		_, anyerr := CategoriesCollection.InsertOne(ctx, category)
 		if anyerr != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Category Not Created"})
@@ -98,148 +98,138 @@ func AddCategory() gin.HandlerFunc {
 	}
 }
 func GetCategory() gin.HandlerFunc {
-    return func(c *gin.Context) {
-        
-        ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-        defer cancel()
+	return func(c *gin.Context) {
 
-        // Aggregation pipeline to perform $lookup with parent_category collection
-        pipeline :=  []bson.M{
-                {
-					"$lookup": bson.M{
-                    "from":         "Categories", 
-                    "localField":   "parent_category",
-                    "foreignField": "_id",
-                    "as":           "parent_category_details",
-                },
-            },
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Aggregation pipeline to perform $lookup with parent_category collection
+		pipeline := []bson.M{
+			{
+				"$match": bson.M{"isApproved": true},
+			},
+			{
+				"$lookup": bson.M{
+					"from":         "Categories",
+					"localField":   "parent_category",
+					"foreignField": "_id",
+					"as":           "parent_category_details",
+				},
+			},
 		}
-           
-        
 
-        // Execute aggregation pipeline
-        cursor, err := CategoriesCollection.Aggregate(ctx, pipeline)
-        if err != nil {
-            c.JSON(http.StatusInternalServerError, "Something went wrong. Please try again.")
-            return
-        }
-        defer cursor.Close(ctx)
+		// Execute aggregation pipeline
+		cursor, err := CategoriesCollection.Aggregate(ctx, pipeline)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, "Something went wrong. Please try again.")
+			return
+		}
+		defer cursor.Close(ctx)
 
-		var results []models.Categories;
+		var results []models.Categories
 
-        // Decode the results into category slice
-        if err := cursor.All(ctx, &results); err != nil {
-            c.JSON(http.StatusInternalServerError, "Something went wrong while fetching data. Please try again.")
-            return
-        }
+		// Decode the results into category slice
+		if err := cursor.All(ctx, &results); err != nil {
+			c.JSON(http.StatusInternalServerError, "Something went wrong while fetching data. Please try again.")
+			return
+		}
 
-        // Loop through the cursor and get image of each category
-        for i := range results {
-            url, err := getPresignURL(results[i].Category_image)
-            if err != nil {
-                log.Println("Error generating pre-signed URL for image:", err)
-                continue
-            }
-            if url != "" {
-                results[i].Category_image = url
-            }
-        }
+		// Loop through the cursor and get image of each category
+		for i := range results {
+			url, err := getPresignURL(results[i].Category_image)
+			if err != nil {
+				log.Println("Error generating pre-signed URL for image:", err)
+				continue
+			}
+			if url != "" {
+				results[i].Category_image = url
+			}
+		}
 
-        c.JSON(http.StatusOK, results)
-    }
+		c.JSON(http.StatusOK, results)
+	}
 }
 
-
-
-
 func GetSingleCategory() gin.HandlerFunc {
-    // Extract category ID from query parameter
+	// Extract category ID from query parameter
 	return func(c *gin.Context) {
-	categoryID := c.Query("id")
-    if categoryID == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"Error": "Category ID is required"})
-        return
-    }
+		categoryID := c.Query("id")
+		if categoryID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Category ID is required"})
+			return
+		}
 
-    // Convert category ID string to ObjectID
-    objID, err := primitive.ObjectIDFromHex(categoryID)
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid category ID"})
-        return
-    }
+		// Convert category ID string to ObjectID
+		objID, err := primitive.ObjectIDFromHex(categoryID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid category ID"})
+			return
+		}
 
-	// Find category by ID
-	var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	var category models.Categories
-	err = CategoriesCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&category)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"Error": "Main category not found"})
-		return
-	}
+		// Find category by ID
+		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		var category models.Categories
+		err = CategoriesCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&category)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"Error": "Main category not found"})
+			return
+		}
 
-  
+		url, err := getPresignURL(category.Category_image)
+		if err != nil {
+			log.Println("Error generating pre-signed URL for image:", err)
+			url = ""
+		}
+		if url != "" {
+			category.Category_image = url
+		}
 
-	url, err := getPresignURL(category.Category_image)
-	if err != nil {
-		log.Println("Error generating pre-signed URL for image:", err)
-		url = ""
-	}
-	if url != "" {
-		category.Category_image = url
-	}
+		child_category, err := GetCategoryWithId(objID)
 
+		categoryWithChildren := CategoryWithChildren{
+			Category:        category,
+			ChildCategories: child_category,
+		}
 
-	
-    
-    child_category, err := GetCategoryWithId(objID)
-	
-
-
-	 categoryWithChildren := CategoryWithChildren{
-            Category:       category,
-            ChildCategories: child_category,
-        }
-
-
-    c.JSON(http.StatusOK,categoryWithChildren )
+		c.JSON(http.StatusOK, categoryWithChildren)
 	}
 }
 
 func GetCategoryWithId(categoryID primitive.ObjectID) ([]models.Categories, error) {
-    var ctx = context.Background()
+	var ctx = context.Background()
 
-    // Aggregation pipeline to find category details and its child categories recursively
-    pipeline := []bson.M{
-        {
-            "$match": bson.M{"parent_category": categoryID},
-        },
-        {
-            "$graphLookup": bson.M{
-                "from":              "Categories",
-                "startWith":         "$_id",
-                "connectFromField":  "parent_category",
-                "connectToField":    "_id",
-                "as":                "child_categories",
-                "maxDepth":          10, // Set a maximum depth to prevent infinite recursion
-            },
-        },
-    }
+	// Aggregation pipeline to find category details and its child categories recursively
+	pipeline := []bson.M{
+		{
+			"$match": bson.M{"parent_category": categoryID},
+		},
+		{
+			"$graphLookup": bson.M{
+				"from":             "Categories",
+				"startWith":        "$_id",
+				"connectFromField": "parent_category",
+				"connectToField":   "_id",
+				"as":               "child_categories",
+				"maxDepth":         10, // Set a maximum depth to prevent infinite recursion
+			},
+		},
+	}
 
-    // Execute aggregation pipeline
-    cursor, err := CategoriesCollection.Aggregate(ctx, pipeline)
-    if err != nil {
-        return nil, err
-    }
-    defer cursor.Close(ctx)
+	// Execute aggregation pipeline
+	cursor, err := CategoriesCollection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
 
-    // Decode the results into a slice of categories
-    var categories []models.Categories
-    for cursor.Next(ctx) {
-        var category models.Categories
-        if err := cursor.Decode(&category); err != nil {
-            return nil, err
-        }
+	// Decode the results into a slice of categories
+	var categories []models.Categories
+	for cursor.Next(ctx) {
+		var category models.Categories
+		if err := cursor.Decode(&category); err != nil {
+			return nil, err
+		}
 		// Get image of each category prsign url
 
 		url, err := getPresignURL(category.Category_image)
@@ -251,18 +241,16 @@ func GetCategoryWithId(categoryID primitive.ObjectID) ([]models.Categories, erro
 			category.Category_image = url
 		}
 
-        categories = append(categories, category)
-    }
+		categories = append(categories, category)
+	}
 
-    // Check if any categories found
-    if len(categories) == 0 {
-        return nil, errors.New("no categories found")
-    }
+	// Check if any categories found
+	if len(categories) == 0 {
+		return nil, errors.New("no categories found")
+	}
 
-    return categories, nil
+	return categories, nil
 }
-
-
 
 func EditCategory() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -303,15 +291,14 @@ func EditCategory() gin.HandlerFunc {
 	}
 }
 
-
 func ApproveCategory() gin.HandlerFunc {
-
 
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		cat_id := c.Query("id")
+		cat_id := c.Param("id")
+		status := c.Query("status")
 
 		if cat_id == "" {
 			c.Header("content-type", "application/json")
@@ -327,8 +314,7 @@ func ApproveCategory() gin.HandlerFunc {
 			return
 		}
 
-		
-		_,err = CategoriesCollection.UpdateOne(ctx, bson.M{"_id": catID}, bson.D{{Key: "$set", Value: bson.M{"isApproved": true}}})
+		_, err = CategoriesCollection.UpdateOne(ctx, bson.M{"_id": catID}, bson.D{{Key: "$set", Value: bson.M{"isApproved": status}}})
 
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Internal server error"})
@@ -336,9 +322,7 @@ func ApproveCategory() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{"message": "Category approved successfully"})
-		
 
 	}
-
 
 }
