@@ -3,8 +3,10 @@ package controllers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -171,6 +173,7 @@ func AdminGetCategoryHandler() gin.HandlerFunc {
 		// Execute aggregation pipeline
 		cursor, err := CategoriesCollection.Aggregate(ctx, pipeline)
 		if err != nil {
+			fmt.Print(err)
 			c.JSON(http.StatusInternalServerError, "Something went wrong. Please try again.")
 			return
 		}
@@ -180,6 +183,7 @@ func AdminGetCategoryHandler() gin.HandlerFunc {
 
 		// Decode the results into category slice
 		if err := cursor.All(ctx, &results); err != nil {
+			fmt.Print(err)
 			c.JSON(http.StatusInternalServerError, "Something went wrong while fetching data. Please try again.")
 			return
 		}
@@ -348,7 +352,12 @@ func ApproveCategory() gin.HandlerFunc {
 		defer cancel()
 
 		cat_id := c.Param("id")
-		status := c.Query("status")
+		status, err := strconv.ParseBool(c.Query("status"))
+
+		if err != nil {
+			c.JSON(http.StatusBadRequest, "Internal server error")
+			return
+		}
 
 		if cat_id == "" {
 			c.Header("content-type", "application/json")
