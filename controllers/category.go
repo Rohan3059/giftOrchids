@@ -352,9 +352,24 @@ func ApproveCategory() gin.HandlerFunc {
 		defer cancel()
 
 		cat_id := c.Param("id")
-		status, err := strconv.ParseBool(c.Query("status"))
+		statusString := c.Query("status")
+		if cat_id == "" {
+
+			c.Header("content-type", "application/json")
+			c.JSON(http.StatusNotFound, gin.H{"Error": "Invalid user id"})
+			return
+		}
+		if statusString == "" {
+
+			c.Header("content-type", "application/json")
+			c.JSON(http.StatusNotFound, gin.H{"Error": "Approval Status required "})
+			return
+		}
+
+		status, err := strconv.ParseBool(statusString)
 
 		if err != nil {
+			fmt.Println(err)
 			c.JSON(http.StatusBadRequest, "Internal server error")
 			return
 		}
