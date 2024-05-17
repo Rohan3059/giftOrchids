@@ -21,6 +21,8 @@ type Product struct {
 	PriceRange       []ProductPriceRange  `json:"pricerange"`
 	Variant          []ProductVariant     `json:"variant"`
 	Reviews          []primitive.ObjectID ` bson:"reviews" json:"reviews" `
+	Created_at       time.Time            `json:"created_at" bson:"created_at" `
+	Updated_at       time.Time            `json:"updated_at" bson:"updated_at" `
 }
 
 type AttributeType struct {

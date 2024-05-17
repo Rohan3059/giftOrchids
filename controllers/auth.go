@@ -44,10 +44,15 @@ func SetOtpHandler() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+
+		created_at, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+
 		if err == mongo.ErrNoDocuments {
 			user := models.USer{
-				User_id:  primitive.NewObjectID(),
-				MobileNo: contactNo,
+				User_id:    primitive.NewObjectID(),
+				MobileNo:   contactNo,
+				Created_at: created_at,
+				Updated_at: created_at,
 			}
 			UserCollection.InsertOne(ctx, user)
 			isNewUser = true
@@ -134,7 +139,6 @@ func ValidateOtpHandler() gin.HandlerFunc {
 	}
 }
 
-
 // RegisterUser handles the registration of a new user
 func UpdateUserDetails() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -177,9 +181,6 @@ func UpdateUserDetails() gin.HandlerFunc {
 	}
 }
 
-
-
-
 func generateOTP(mobileNo string) (string, error) {
 	rand.Seed(time.Now().UnixNano())
 	otp := 100000 + rand.Intn(900000)
@@ -206,129 +207,117 @@ func generateOTP(mobileNo string) (string, error) {
 	return fmt.Sprintf("%06d", otp), nil
 }
 
-
 func LoadSeller() gin.HandlerFunc {
 	return func(c *gin.Context) {
-	sellerID, exists := c.Get("uid")
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Seller ID not found in context"})
-		return
-	}
-
-	
-	sellerObjID, err := primitive.ObjectIDFromHex(sellerID.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Seller ID"})
-		return
-	}
-
-	// Query the database to get seller information
-	var seller models.Seller // Assuming Seller struct is defined in models package
-	err = SellerCollection.FindOne(context.Background(), bson.M{"_id": sellerObjID}).Decode(&seller)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
-		return
-	}
-
-	if(seller.CompanyDetail.ProfilePicture!=""){
-				profilePictureUrl,err := getPresignURL(seller.CompanyDetail.ProfilePicture)
-		if err != nil {
-			//
+		sellerID, exists := c.Get("uid")
+		if !exists {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Seller ID not found in context"})
+			return
 		}
 
-		seller.CompanyDetail.ProfilePicture = profilePictureUrl
-	}
-	
+		sellerObjID, err := primitive.ObjectIDFromHex(sellerID.(string))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Seller ID"})
+			return
+		}
 
-	if !seller.Approved {
-    c.JSON(http.StatusOK, gin.H{"message": "Seller is not approved", "isApproved": false, "seller": seller })
-    return
-}	
-	c.JSON(http.StatusOK, gin.H{"message": "Seller is approved", "isApproved": true, "seller": seller} )
+		// Query the database to get seller information
+		var seller models.Seller // Assuming Seller struct is defined in models package
+		err = SellerCollection.FindOne(context.Background(), bson.M{"_id": sellerObjID}).Decode(&seller)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
+			return
+		}
+
+		if seller.CompanyDetail.ProfilePicture != "" {
+			profilePictureUrl, err := getPresignURL(seller.CompanyDetail.ProfilePicture)
+			if err != nil {
+				//
+			}
+
+			seller.CompanyDetail.ProfilePicture = profilePictureUrl
+		}
+
+		if !seller.Approved {
+			c.JSON(http.StatusOK, gin.H{"message": "Seller is not approved", "isApproved": false, "seller": seller})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Seller is approved", "isApproved": true, "seller": seller})
 	}
 }
-
 
 func ResetPassword() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		 var input struct {
-        MobileNo string `json:"mobileno" validate:"required"`
-        OTP          string `json:"otp" validate:"required"`
-    	Password  string `json:"password" validate:"required,min=6"`
-    }
+		var input struct {
+			MobileNo string `json:"mobileno" validate:"required"`
+			OTP      string `json:"otp" validate:"required"`
+			Password string `json:"password" validate:"required,min=6"`
+		}
 
-    // Bind JSON request body to input struct
-    if err := c.ShouldBindJSON(&input); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
-        return
-    }
+		// Bind JSON request body to input struct
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
+			return
+		}
 
-	
-	var seller models.Seller 
+		var seller models.Seller
 
-	err := SellerCollection.FindOne(context.Background(), bson.M{"mobileno": input.MobileNo}).Decode(&seller)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"Error": "No Account is registered with this number"})
-		return
-	}
+		err := SellerCollection.FindOne(context.Background(), bson.M{"mobileno": input.MobileNo}).Decode(&seller)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"Error": "No Account is registered with this number"})
+			return
+		}
 
-	if(input.OTP != seller.OTP ){
-		c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid OTP"})
-		return
-	}
+		if input.OTP != seller.OTP {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid OTP"})
+			return
+		}
 
-     hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
-		return 
-    }
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+			return
+		}
 
-    filter := bson.M{"mobileno": input.MobileNo }
-    update := bson.M{"$set": bson.M{"password": string(hashedPassword)}}
-    _, err = SellerCollection.UpdateOne(context.Background(), filter, update)
-    if err != nil {
-    	 c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		 return ;
-    }
+		filter := bson.M{"mobileno": input.MobileNo}
+		update := bson.M{"$set": bson.M{"password": string(hashedPassword)}}
+		_, err = SellerCollection.UpdateOne(context.Background(), filter, update)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 
-    c.JSON(http.StatusOK, gin.H{"message": "Password updated successfully"})
+		c.JSON(http.StatusOK, gin.H{"message": "Password updated successfully"})
 
 	}
 }
-
-
 
 func LoadUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
-	userId, exists := c.Get("uid")
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found in context"})
-		return
-	}
+		userId, exists := c.Get("uid")
+		if !exists {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "User not found in context"})
+			return
+		}
 
-	// Convert sellerID to ObjectID
-	userObjID, err := primitive.ObjectIDFromHex(userId.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Seller ID"})
-		return
-	}
+		// Convert sellerID to ObjectID
+		userObjID, err := primitive.ObjectIDFromHex(userId.(string))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Seller ID"})
+			return
+		}
 
-	// Query the database to get seller information
-	var user models.USer // Assuming Seller struct is defined in models package
-	err = UserCollection.FindOne(context.Background(), bson.M{"_id": userObjID}).Decode(&user)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
-		return
-	}
+		// Query the database to get seller information
+		var user models.USer // Assuming Seller struct is defined in models package
+		err = UserCollection.FindOne(context.Background(), bson.M{"_id": userObjID}).Decode(&user)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
+			return
+		}
 
-	
-	
-	c.JSON(http.StatusOK, gin.H{"user": user } )
+		c.JSON(http.StatusOK, gin.H{"user": user})
 	}
 }
-
-
-
 
 func RegisterAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -370,19 +359,19 @@ func RegisterAdmin() gin.HandlerFunc {
 		// Generate a unique seller ID
 		id := primitive.NewObjectID()
 		token, refreshtoken, _ := generate.TokenGenerator(input.Email, input.Mobile, input.Name, id.Hex())
-		
+
 		admin := models.Seller{
-			ID:          id,
-			Seller_ID:    id.Hex() ,// You can generate a unique seller ID here if needed
-			Company_Name: input.Name,
-			MobileNo:     input.Mobile,
-			Email:        input.Email,
-			Password:     string(hashedPassword),
-			Token:        token,
+			ID:            id,
+			Seller_ID:     id.Hex(), // You can generate a unique seller ID here if needed
+			Company_Name:  input.Name,
+			MobileNo:      input.Mobile,
+			Email:         input.Email,
+			Password:      string(hashedPassword),
+			Token:         token,
 			Refresh_token: refreshtoken,
-			User_type:    "ADMIN",
-			Created_at:   time.Now(),
-			Updated_at:   time.Now(),
+			User_type:     "ADMIN",
+			Created_at:    time.Now(),
+			Updated_at:    time.Now(),
 		}
 
 		// Insert the admin into the database
@@ -395,4 +384,3 @@ func RegisterAdmin() gin.HandlerFunc {
 		c.JSON(http.StatusCreated, gin.H{"message": "Admin registered successfully"})
 	}
 }
-

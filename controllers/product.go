@@ -274,15 +274,15 @@ func ProductViewerAdmin() gin.HandlerFunc {
 		}
 
 		price := strings.TrimSpace(c.PostForm("price"))
-		if err != nil {
-			log.Println("error while parsing price")
-			c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
-			return
-		}
+
 		product.Price = price
 
 		product.Discription = c.PostForm("discription")
 		product.Category = c.PostForm("category")
+		//add time
+
+		product.Created_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		product.Updated_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 
 		form, err := c.MultipartForm()
 		if err != nil {

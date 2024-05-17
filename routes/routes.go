@@ -97,5 +97,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/admin/update-feed", controllers.UpdateFeed())
 	incomingRoutes.GET("/admin/products", controllers.GetAllProducts())
 
+	incomingRoutes.GET("/admin/dashboard/analytics", controllers.GetAnalytics())
+
 	//incomingRoutes.GET("/getcategory", controllers.GetCategory())
 }
