@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -40,7 +41,7 @@ func EnquiryHandler() gin.HandlerFunc {
 		enquire.Enquire_id = primitive.NewObjectID()
 		enquire.User_id = uid.(string)
 
-		enquire.EnquireId, _ = GenerateUniqueTicketID(ctx, enquire.User_id)
+		enquire.EnquireId = strconv.FormatInt(time.Now().Unix(), 10)[2:10]
 		enquire.Status = "Pending"
 		enquire.Enquire_date, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 		enquire.UpdatedAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
@@ -248,8 +249,19 @@ func getProductDetails(ctx context.Context, productID string) map[string]interfa
 
 	errs := ProductCollection.FindOne(ctx, bson.M{"_id": id}).Decode(&productDetails)
 	if errs != nil {
-		log.Printf("Error fetching product details for product ID %s: %s", productID, err.Error())
+		log.Printf("Error fetching product details for product ID %s: %s", productID, errs.Error())
 		return nil
+	}
+
+	//get image array iterate and convert to presign url and add back that url
+
+	for i, img := range productDetails["image"].([]interface{}) {
+		url, err := getPresignURL(img.(string))
+		if err != nil {
+			log.Printf("Error generating pre-signed URL for image %s: %s", img, err.Error())
+			continue
+		}
+		productDetails["image"].([]interface{})[i] = url
 	}
 
 	return productDetails
@@ -267,11 +279,19 @@ func getUserDetails(ctx context.Context, userID string) map[string]interface{} {
 
 	errs := UserCollection.FindOne(ctx, bson.M{"_id": id}).Decode(&userDetails)
 	if errs != nil {
-		log.Printf("Error fetching user details for user ID %s: %s", userID, err.Error())
+		log.Printf("Error fetching user details for user ID %s: %s", userID, errs.Error())
 		return nil
 	}
 
-	return userDetails
+	//only send name, email,mobile and _id not other details , just create new map for it
+	newUserDetails := make(map[string]interface{})
+
+	newUserDetails["name"] = userDetails["user_name"]
+	newUserDetails["email"] = userDetails["email"]
+	newUserDetails["mobile"] = userDetails["mobileno"]
+	newUserDetails["_id"] = userDetails["_id"]
+
+	return newUserDetails
 }
 
 // GetAllRequirementMessages retrieves all RequirementMessages
