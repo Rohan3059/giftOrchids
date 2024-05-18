@@ -16,9 +16,9 @@ import (
 func EnquiryHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		mobileno, existse := c.Get("mobile")
-		
+
 		uid, exists := c.Get("uid")
-	
+
 		if !existse || !exists || uid == "" || mobileno == "" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
 			return
@@ -30,23 +30,21 @@ func EnquiryHandler() gin.HandlerFunc {
 
 		}
 
-		if(enquire.Enquiry_note==""){
+		if enquire.Enquiry_note == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "Enquiry note is required"})
 			return
 		}
 
-		
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		enquire.Enquire_id = primitive.NewObjectID()
 		enquire.User_id = uid.(string)
-		
-		enquire.EnquireId,_ = GenerateUniqueTicketID(ctx,enquire.User_id )
-		enquire.Status = "Pending"
-		enquire.Enquire_date,_ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
-		enquire.UpdatedAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339)) 
 
-		
+		enquire.EnquireId, _ = GenerateUniqueTicketID(ctx, enquire.User_id)
+		enquire.Status = "Pending"
+		enquire.Enquire_date, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		enquire.UpdatedAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+
 		_, err := EnquireCollection.InsertOne(ctx, enquire)
 		if err != nil {
 			log.Print(err)
@@ -58,86 +56,85 @@ func EnquiryHandler() gin.HandlerFunc {
 }
 
 func GetUserEnquiries() gin.HandlerFunc {
-    return func(c *gin.Context) {
-        // Get user ID from token
-        uid, exists := c.Get("uid")
-        if !exists || uid == "" {
-            c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
-            return
-        }
+	return func(c *gin.Context) {
+		// Get user ID from token
+		uid, exists := c.Get("uid")
+		if !exists || uid == "" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+			return
+		}
 
-        // Convert user ID to string
-        userID := uid.(string)
+		// Convert user ID to string
+		userID := uid.(string)
 		fmt.Println(userID)
-        // Define filter to fetch enquiries for the specific user
-        filter := bson.M{"user_id": userID}
+		// Define filter to fetch enquiries for the specific user
+		filter := bson.M{"user_id": userID}
 
-        // Fetch enquiries from the database
-        var enquiries []map[string]interface{}
-        ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-        defer cancel()
-        cursor, err := EnquireCollection.Find(ctx, filter)
-        if err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
-            return
-        }
-        defer cursor.Close(ctx)
-        for cursor.Next(ctx) {
-            var enquire models.Enquire
-            if err := cursor.Decode(&enquire); err != nil {
-                c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
-                return
-            }
+		// Fetch enquiries from the database
+		var enquiries []map[string]interface{}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		cursor, err := EnquireCollection.Find(ctx, filter)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
+			return
+		}
+		defer cursor.Close(ctx)
+		for cursor.Next(ctx) {
+			var enquire models.Enquire
+			if err := cursor.Decode(&enquire); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
+				return
+			}
 
-            // Fetch product details based on product_id
-            var product models.Product
+			// Fetch product details based on product_id
+			var product models.Product
 			fmt.Println(enquire)
 
-		prodID, err := primitive.ObjectIDFromHex(enquire.Product_id)
-		if err != nil {
-			c.Header("content-type", "application/json")
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid ID"})
-			c.Abort()
-			return 
-		}
-			
-        errors := ProductCollection.FindOne(ctx, bson.M{"_id": prodID }).Decode(&product)
-            if errors != nil {
-                c.JSON(http.StatusInternalServerError, gin.H{"Error": "failed to fetch product details"})
-                return
-            }
+			prodID, err := primitive.ObjectIDFromHex(enquire.Product_id)
+			if err != nil {
+				c.Header("content-type", "application/json")
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid ID"})
+				c.Abort()
+				return
+			}
+
+			errors := ProductCollection.FindOne(ctx, bson.M{"_id": prodID}).Decode(&product)
+			if errors != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"Error": "failed to fetch product details"})
+				return
+			}
 
 			var imgUrl string
-			if product.Image !=nil{
-				url,err := getPresignURL(product.Image[0])
+			if product.Image != nil {
+				url, err := getPresignURL(product.Image[0])
 				if err != nil {
 					imgUrl = ""
 				}
 				imgUrl = url
 			}
 
-            // Add product name and image to enquiry
-            enquiryWithProduct := map[string]interface{}{
-                "enquiry_id":   enquire.Enquire_id.Hex(),
-                "user_id":      enquire.User_id,
-                "product_name": product.Product_Name,
-                "product_image": imgUrl,
-				"enquire_note": enquire.Enquiry_note,
+			// Add product name and image to enquiry
+			enquiryWithProduct := map[string]interface{}{
+				"enquiry_id":       enquire.Enquire_id.Hex(),
+				"user_id":          enquire.User_id,
+				"product_name":     product.Product_Name,
+				"product_image":    imgUrl,
+				"enquire_note":     enquire.Enquiry_note,
 				"enquire_quantity": enquire.Quantity,
-				"enquire_status": enquire.Status,
-                // Add other enquiry fields if needed
-            }
-            enquiries = append(enquiries, enquiryWithProduct)
-        }
-        if err := cursor.Err(); err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
-            return
-        }
+				"enquire_status":   enquire.Status,
+				// Add other enquiry fields if needed
+			}
+			enquiries = append(enquiries, enquiryWithProduct)
+		}
+		if err := cursor.Err(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
+			return
+		}
 
-        c.JSON(http.StatusOK, enquiries)
-    }
+		c.JSON(http.StatusOK, enquiries)
+	}
 }
-
 
 func GETEnquiryHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -176,9 +173,9 @@ func GETEnquiryHandler() gin.HandlerFunc {
 
 			// Construct enriched enquiry
 			enquiryWithDetails := map[string]interface{}{
-				"enquiry":   enquiry,
-				"product":   productDetails,
-				"user":      userDetails,
+				"enquiry": enquiry,
+				"product": productDetails,
+				"user":    userDetails,
 			}
 
 			enquiriesWithDetails = append(enquiriesWithDetails, enquiryWithDetails)
@@ -194,7 +191,7 @@ func GetAdminSingleEnquiry() gin.HandlerFunc {
 		defer cancel()
 
 		var Enquire_id = c.Param("id")
-		id,err :=primitive.ObjectIDFromHex(Enquire_id)
+		id, err := primitive.ObjectIDFromHex(Enquire_id)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid ID"})
 			return
@@ -219,24 +216,22 @@ func GetAdminSingleEnquiry() gin.HandlerFunc {
 		// Enrich enquiry data with additional details
 		enquiriesWithDetails := make([]map[string]interface{}, 0)
 
-		
-			// Fetch product details based on product_id
-			productDetails := getProductDetails(ctx, enquire.Product_id)
+		// Fetch product details based on product_id
+		productDetails := getProductDetails(ctx, enquire.Product_id)
 
-			// Fetch user details based on user_id
-			userDetails := getUserDetails(ctx, enquire.User_id)
+		// Fetch user details based on user_id
+		userDetails := getUserDetails(ctx, enquire.User_id)
 
-			// Construct enriched enquiry
-			enquiryWithDetails := map[string]interface{}{
-				"enquiry":   enquire,
-				"product":   productDetails,
-				"user":      userDetails,
-			}
+		// Construct enriched enquiry
+		enquiryWithDetails := map[string]interface{}{
+			"enquiry": enquire,
+			"product": productDetails,
+			"user":    userDetails,
+		}
 
-			enquiriesWithDetails = append(enquiriesWithDetails, enquiryWithDetails)
-		
+		enquiriesWithDetails = append(enquiriesWithDetails, enquiryWithDetails)
 
-		c.JSON(http.StatusOK, enquiriesWithDetails)
+		c.JSON(http.StatusOK, enquiryWithDetails)
 	}
 }
 
@@ -244,7 +239,7 @@ func GetAdminSingleEnquiry() gin.HandlerFunc {
 func getProductDetails(ctx context.Context, productID string) map[string]interface{} {
 	var productDetails map[string]interface{}
 
-	id,err := primitive.ObjectIDFromHex(productID);
+	id, err := primitive.ObjectIDFromHex(productID)
 
 	if err != nil {
 		log.Printf("Error parsing product ID %s: %s", productID, err.Error())
@@ -278,6 +273,7 @@ func getUserDetails(ctx context.Context, userID string) map[string]interface{} {
 
 	return userDetails
 }
+
 // GetAllRequirementMessages retrieves all RequirementMessages
 func GetAllRequirementMessages() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -325,6 +321,7 @@ func CreateRequirementMessage() gin.HandlerFunc {
 		c.JSON(http.StatusCreated, result.InsertedID)
 	}
 }
+
 // UpdateRequirementMessage updates a RequirementMessage
 func UpdateRequirementMessage() gin.HandlerFunc {
 	return func(c *gin.Context) {
