@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"github.com/kravi0/BizGrowth-backend/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func EnquiryHandler() gin.HandlerFunc {
@@ -53,6 +55,50 @@ func EnquiryHandler() gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"Success": "enquiry registerd"})
+	}
+}
+
+// update status of requirement
+func UpdateEnquireStatus() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if !checkAdmin(ctx, c) {
+			c.JSON(http.StatusForbidden, gin.H{"Error": "forbidden"})
+			return
+		}
+
+		id := c.Param("id")
+		status := c.Query("status")
+		//objectid
+
+		objectId, err := primitive.ObjectIDFromHex(id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
+			return
+		}
+
+		//find  update enquiry status
+		var enquiry models.Enquire
+
+		filter := bson.M{"_id": objectId}
+
+		update := bson.M{"$set": bson.M{"status": status}}
+
+		findErr := EnquireCollection.FindOneAndUpdate(ctx, filter, update).Decode(&enquiry)
+
+		if findErr != nil {
+			if errors.Is(findErr, mongo.ErrNoDocuments) {
+				c.JSON(http.StatusNotFound, gin.H{"Error": "Enquiry not found"})
+				return
+			}
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "something went wrong"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"success": "Enquiry status updated"})
+
 	}
 }
 
