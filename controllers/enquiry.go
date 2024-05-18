@@ -214,9 +214,6 @@ func GetAdminSingleEnquiry() gin.HandlerFunc {
 			return
 		}
 
-		// Enrich enquiry data with additional details
-		enquiriesWithDetails := make([]map[string]interface{}, 0)
-
 		// Fetch product details based on product_id
 		productDetails := getProductDetails(ctx, enquire.Product_id)
 
@@ -230,15 +227,13 @@ func GetAdminSingleEnquiry() gin.HandlerFunc {
 			"user":    userDetails,
 		}
 
-		enquiriesWithDetails = append(enquiriesWithDetails, enquiryWithDetails)
-
 		c.JSON(http.StatusOK, enquiryWithDetails)
 	}
 }
 
 // Function to fetch product details based on product_id
 func getProductDetails(ctx context.Context, productID string) map[string]interface{} {
-	var productDetails map[string]interface{}
+	var productDetails models.Product
 
 	id, err := primitive.ObjectIDFromHex(productID)
 
@@ -253,23 +248,42 @@ func getProductDetails(ctx context.Context, productID string) map[string]interfa
 		return nil
 	}
 
-	//get image array iterate and convert to presign url and add back that url
+	for i, url := range productDetails.Image {
 
-	for i, img := range productDetails["image"].([]interface{}) {
-		url, err := getPresignURL(img.(string))
+		// Get pre-signed URL for the image
+		url, err := getPresignURL(url)
 		if err != nil {
-			log.Printf("Error generating pre-signed URL for image %s: %s", img, err.Error())
+			log.Println("Error generating pre-signed URL for image:", err)
 			continue
 		}
-		productDetails["image"].([]interface{})[i] = url
+		// Update the image URL in the product
+		productDetails.Image[i] = url
+
 	}
 
-	return productDetails
+	var sellerArray []map[string]interface{}
+	for _, seller := range productDetails.SellerRegistered {
+		//get seller details
+		sellerDetail := getSellerDetails(ctx, seller)
+		sellerArray = append(sellerArray, sellerDetail)
+	}
+
+	newProductDetails := map[string]interface{}{
+		"name":        productDetails.Product_Name,
+		"_id":         productDetails.Product_ID,
+		"image":       productDetails.Image,
+		"price":       productDetails.Price,
+		"category":    productDetails.Category,
+		"price_range": productDetails.PriceRange,
+		"sellers":     sellerArray,
+	}
+
+	return newProductDetails
 }
 
 // Function to fetch user details based on user_id
 func getUserDetails(ctx context.Context, userID string) map[string]interface{} {
-	var userDetails map[string]interface{}
+	var userDetails models.USer
 
 	id, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
@@ -284,14 +298,45 @@ func getUserDetails(ctx context.Context, userID string) map[string]interface{} {
 	}
 
 	//only send name, email,mobile and _id not other details , just create new map for it
-	newUserDetails := make(map[string]interface{})
-
-	newUserDetails["name"] = userDetails["user_name"]
-	newUserDetails["email"] = userDetails["email"]
-	newUserDetails["mobile"] = userDetails["mobileno"]
-	newUserDetails["_id"] = userDetails["_id"]
+	newUserDetails := map[string]interface{}{
+		"name":   userDetails.UserName,
+		"email":  userDetails.Email,
+		"mobile": userDetails.MobileNo,
+		"_id":    userDetails.User_id,
+	}
 
 	return newUserDetails
+}
+
+func getSellerDetails(ctx context.Context, id string) map[string]interface{} {
+
+	var sellerDetails models.Seller
+
+	sellerId, err := primitive.ObjectIDFromHex(id)
+
+	if err != nil {
+		log.Printf("Error parsing seller ID %s: %s", id, err.Error())
+		return nil
+	}
+
+	errs := SellerCollection.FindOne(ctx, bson.M{"_id": sellerId}).Decode(&sellerDetails)
+	if errs != nil {
+
+		log.Printf("Error fetching seller details for seller ID %s: %s", id, errs.Error())
+		return nil
+
+	}
+
+	//only send name, email,mobile and _id not other details , just create new map for it
+	newSellerDetails := map[string]interface{}{
+		"company_name": sellerDetails.Company_Name,
+		"email":        sellerDetails.Email,
+		"mobile":       sellerDetails.MobileNo,
+		"_id":          sellerDetails.Seller_ID,
+	}
+
+	return newSellerDetails
+
 }
 
 // GetAllRequirementMessages retrieves all RequirementMessages
