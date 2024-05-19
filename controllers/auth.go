@@ -207,45 +207,6 @@ func generateOTP(mobileNo string) (string, error) {
 	return fmt.Sprintf("%06d", otp), nil
 }
 
-func LoadSeller() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		sellerID, exists := c.Get("uid")
-		if !exists {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Seller ID not found in context"})
-			return
-		}
-
-		sellerObjID, err := primitive.ObjectIDFromHex(sellerID.(string))
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Seller ID"})
-			return
-		}
-
-		// Query the database to get seller information
-		var seller models.Seller // Assuming Seller struct is defined in models package
-		err = SellerCollection.FindOne(context.Background(), bson.M{"_id": sellerObjID}).Decode(&seller)
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
-			return
-		}
-
-		if seller.CompanyDetail.ProfilePicture != "" {
-			profilePictureUrl, err := getPresignURL(seller.CompanyDetail.ProfilePicture)
-			if err != nil {
-				//
-			}
-
-			seller.CompanyDetail.ProfilePicture = profilePictureUrl
-		}
-
-		if !seller.Approved {
-			c.JSON(http.StatusOK, gin.H{"message": "Seller is not approved", "isApproved": false, "seller": seller})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"message": "Seller is approved", "isApproved": true, "seller": seller})
-	}
-}
-
 func ResetPassword() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input struct {

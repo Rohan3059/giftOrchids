@@ -180,10 +180,22 @@ func getPresignURL(s3Url string) (string, error) {
 
 	if strings.Contains(s3Url, "pdf") {
 		contentType = "application/pdf"
+	} else if strings.Contains(s3Url, "docx") {
+		contentType = "application/docx"
 	} else if strings.Contains(s3Url, "mp4") {
 		contentType = "video/mp4"
-	} else {
+	} else if strings.Contains(s3Url, "jpg") {
+		contentType = "image/jpg"
+	} else if strings.Contains(s3Url, "png") {
 		contentType = "image/png"
+	} else if strings.Contains(s3Url, "webp") {
+		contentType = "image/webp"
+	} else if strings.Contains(s3Url, "avif") {
+		contentType = "image/avif"
+	} else if strings.Contains(s3Url, "svg") {
+		contentType = "image/svg"
+	} else if strings.Contains(s3Url, "jpeg") {
+		contentType = "image/jpeg"
 	}
 
 	req, _ := s3client.GetObjectRequest(&s3.GetObjectInput{

@@ -933,3 +933,127 @@ func DownloadAllFiles() gin.HandlerFunc {
 	}
 
 }
+
+func LoadSeller() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sellerID, exists := c.Get("uid")
+		if !exists {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Seller ID not found in context"})
+			return
+		}
+
+		sellerObjID, err := primitive.ObjectIDFromHex(sellerID.(string))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Seller ID"})
+			return
+		}
+
+		// Query the database to get seller information
+		var seller models.Seller // Assuming Seller struct is defined in models package
+		err = SellerCollection.FindOne(context.Background(), bson.M{"_id": sellerObjID}).Decode(&seller)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
+			return
+		}
+
+		if seller.CompanyDetail.ProfilePicture != "" {
+			profilePictureUrl, err := getPresignURL(seller.CompanyDetail.ProfilePicture)
+			if err != nil {
+				//
+			}
+
+			seller.CompanyDetail.ProfilePicture = profilePictureUrl
+		}
+
+		seller.CompanyDetail = getPresignUrlOfSellerBusinessDoc(seller.CompanyDetail)
+		seller.OwnerDetail = getPresignUrlOfOwnerDocs(seller.OwnerDetail)
+
+		if !seller.Approved {
+			c.JSON(http.StatusOK, gin.H{"message": "Seller is not approved", "isApproved": false, "seller": seller})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Seller is approved", "isApproved": true, "seller": seller})
+	}
+}
+
+func getPresignUrlOfSellerBusinessDoc(companyDetail models.CompanyDetail) models.CompanyDetail {
+
+	if companyDetail.GSTINDoc != "" {
+
+		url, err := getPresignURL(companyDetail.GSTINDoc)
+		if err != nil {
+			url = ""
+		}
+
+		companyDetail.GSTINDoc = url
+	}
+
+	if companyDetail.PANImage != "" {
+
+		url, err := getPresignURL(companyDetail.PANImage)
+		if err != nil {
+			url = ""
+		}
+
+		companyDetail.PANImage = url
+	}
+
+	if companyDetail.CINDoc != "" {
+
+		url, err := getPresignURL(companyDetail.CINDoc)
+		if err != nil {
+			url = ""
+		}
+
+		companyDetail.CINDoc = url
+	}
+
+	if companyDetail.LLPINDoc != "" {
+
+		url, err := getPresignURL(companyDetail.LLPINDoc)
+		if err != nil {
+			url = ""
+		}
+
+		companyDetail.LLPINDoc = url
+	}
+
+	return companyDetail
+
+}
+
+func getPresignUrlOfOwnerDocs(ownerDetails models.OwnerDetails) models.OwnerDetails {
+
+	if ownerDetails.PassportDocument != "" {
+
+		url, err := getPresignURL(ownerDetails.PassportDocument)
+		if err != nil {
+			url = ""
+		}
+
+		ownerDetails.PassportDocument = url
+
+	}
+
+	if ownerDetails.AadharDocument != "" {
+
+		url, err := getPresignURL(ownerDetails.AadharDocument)
+		if err != nil {
+			url = ""
+		}
+
+		ownerDetails.AadharDocument = url
+	}
+
+	if ownerDetails.PanDocument != "" {
+
+		url, err := getPresignURL(ownerDetails.PanDocument)
+		if err != nil {
+			url = ""
+		}
+		ownerDetails.PanDocument = url
+	}
+
+	return ownerDetails
+
+}
