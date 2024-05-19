@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -467,26 +468,40 @@ func UpdateProduct() gin.HandlerFunc {
 			return
 		}
 		filter := primitive.M{"_id": product.Product_ID}
-		newProduct, err := bson.Marshal(product)
-		if err != nil {
-			log.Fatal(err)
-			c.Header("content-type", "application/json")
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
-			c.Abort()
-			return
+
+		update := bson.M{}
+
+		if product.Product_Name != "" {
+			update["name"] = product.Product_Name
+		}
+		if product.Category != "" {
+			update["category"] = product.Category
 		}
 
-		update := bson.M{"$set": bson.Raw(newProduct)}
-		result, err := ProductCollection.UpdateOne(ctx, filter, update)
+		if product.Discription != "" {
+			update["discription"] = product.Discription
+		}
+
+		if product.Price != "" {
+			update["price"] = product.Price
+		}
+
+		if product.SKU != "" {
+			update["sku"] = product.SKU
+		}
+
+		updated_at, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		update["updated_at"] = updated_at
+
+		var newProduct models.Product
+		err := ProductCollection.FindOneAndUpdate(ctx, filter, update).Decode(&newProduct)
 		if err != nil {
+			if errors.Is(err, mongo.ErrNoDocuments) {
+				c.JSON(http.StatusNotFound, gin.H{"Error": "Product not found"})
+				return
+			}
 			c.Header("content-type", "application/json")
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
-			c.Abort()
-			return
-		}
-		if result.ModifiedCount < 1 {
-			c.Header("content-type", "application/json")
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to find Product "})
 			c.Abort()
 			return
 		}
@@ -653,19 +668,21 @@ func RejectProduct() gin.HandlerFunc {
 			return
 		}
 
+		rejection_note := c.PostForm("rejection_note")
+
 		// Find the product in the database
 		var product models.Product
-		err = ProductCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&product)
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"Error": "product not found"})
-			return
-		}
 
 		// Update the product as rejected
-		update := bson.M{"$set": bson.M{"approved": false}}
-		_, err = ProductCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+		update := bson.M{"$set": bson.M{"isRejected": true, "rejection_note": rejection_note}}
+		err = ProductCollection.FindOneAndUpdate(ctx, bson.M{"_id": objID}, update).Decode(&product)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": "could not reject product"})
+
+			if errors.Is(err, mongo.ErrNoDocuments) {
+				c.JSON(http.StatusNotFound, gin.H{"Error": "product not found"})
+			}
+
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "could not reject product"})
 			return
 		}
 

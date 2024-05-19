@@ -23,6 +23,9 @@ type Product struct {
 	Reviews          []primitive.ObjectID ` bson:"reviews" json:"reviews" `
 	Created_at       time.Time            `json:"created_at" bson:"created_at" `
 	Updated_at       time.Time            `json:"updated_at" bson:"updated_at" `
+	IsArchived       bool                 `json:"isArchived" bson:"isArchived" `
+	IsRejected       bool                 `json:"isRejected" bson:"isRejected"`
+	RejectionNote    string               `json:"rejection_note" bson:"rejection_note" `
 }
 
 type AttributeType struct {
