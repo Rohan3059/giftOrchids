@@ -61,6 +61,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.GET("/get-enquiry", controllers.GetUserEnquiries())
 	incomingRoutes.POST("/post-review", controllers.AddReviewHandler())
 	incomingRoutes.GET("/load-user", controllers.LoadUser())
+	incomingRoutes.PUT("/user/update-profile", controllers.UpdateUserProfile())
 
 	incomingRoutes.Use(middleware.Authentication())
 	incomingRoutes.GET("/seller/products", controllers.GetAllProductsForASellerHandler())
