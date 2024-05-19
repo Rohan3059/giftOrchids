@@ -70,6 +70,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/seller/profile/update/owner-details", controllers.UpdateOwnerDetails())
 	incomingRoutes.POST("/seller/update-product", controllers.AddProductReferenceHandler())
 	incomingRoutes.POST("/seller/update-profilepicture", controllers.SellerUpdateProfilePictureHandler())
+	incomingRoutes.GET("/seller/support-tickets", controllers.GetSellerSupportTicket())
 	incomingRoutes.GET("/seller/info", controllers.LoadSeller())
 	incomingRoutes.POST("/seller/confirm-password", controllers.SellerPasswordConfirmation())
 	incomingRoutes.POST("/seller/update-password", controllers.UpdatePassword())

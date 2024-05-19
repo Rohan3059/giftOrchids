@@ -1203,3 +1203,75 @@ func SellerUpdateProduct() gin.HandlerFunc {
 	}
 
 }
+
+// get support ticket for specific seller
+func GetSellerSupportTicket() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if !checkSeller(ctx, c) {
+			c.JSON(http.StatusForbidden, gin.H{"Error": "forbidden"})
+			return
+		}
+
+		uid, exist := c.Get("uid")
+
+		if !exist {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "You are not authorized to perform this action "})
+			return
+		}
+		//convert to objectid get
+
+		sellerID, _ := primitive.ObjectIDFromHex(uid.(string))
+
+		filter := bson.M{"_id": sellerID}
+
+		var seller models.Seller
+		err := SellerCollection.FindOne(ctx, filter).Decode(&seller)
+
+		if err != nil {
+			fmt.Println(err)
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "something went wrong"})
+			return
+		}
+
+		mobileno := seller.MobileNo
+		email := seller.Email
+
+		support_filter := bson.M{
+			"mobileno": mobileno,
+			"email":    email,
+		}
+
+		var support []models.CustomerSupportTicket
+
+		cursor, err := SupportTickerCollection.Find(ctx, support_filter)
+
+		if err != nil {
+			fmt.Println("Ticket error")
+			fmt.Println(err)
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "something went wrong"})
+			return
+		}
+
+		defer cursor.Close(ctx)
+
+		for cursor.Next(ctx) {
+			var ticket models.CustomerSupportTicket
+			err := cursor.Decode(&ticket)
+			if err != nil {
+				fmt.Println("Ticket decode error")
+				fmt.Println(err)
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "something went wrong"})
+				return
+			}
+
+			support = append(support, ticket)
+
+		}
+
+		c.JSON(http.StatusOK, support)
+	}
+
+}
