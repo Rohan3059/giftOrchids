@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -1055,5 +1056,150 @@ func getPresignUrlOfOwnerDocs(ownerDetails models.OwnerDetails) models.OwnerDeta
 	}
 
 	return ownerDetails
+
+}
+
+// delete image from a product based on index from query
+func DeleteImageFromProduct() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		id := c.Param("id")
+
+		if id == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "productID is required"})
+			return
+		}
+
+		productID, _ := primitive.ObjectIDFromHex(id)
+		i := c.Query("index")
+
+		// Parse the query parameter to an integer
+		index, err := strconv.Atoi(i)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid index"})
+			return
+		}
+
+		var product models.Product
+
+		finderr := ProductCollection.FindOne(ctx, bson.M{"_id": productID}).Decode(&product)
+
+		if checkSeller(ctx, c) {
+			uid, exist := c.Get("uid")
+			if !exist {
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "You are not authorized to perform this action "})
+				return
+			}
+
+			//check product.sellerregistered array has objectid of seller
+			var isAuthorized bool
+
+			for _, v := range product.SellerRegistered {
+				isAuthorized = false
+				if v == uid.(string) {
+					isAuthorized = true
+				}
+			}
+
+			if !isAuthorized {
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "You are not authorized to perform this action "})
+				return
+			}
+
+		}
+
+		if finderr != nil {
+			c.JSON(http.StatusNotFound, gin.H{"Error": "product not found"})
+			return
+		}
+
+		product.Image = append(product.Image[:index], product.Image[index+1:]...)
+
+		_, err = ProductCollection.UpdateOne(ctx, bson.M{"_id": productID}, bson.M{"$set": bson.M{"image": product.Image}})
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "failed to delete image"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "image deleted successfully"})
+
+	}
+
+}
+
+func SellerUpdateProduct() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if !checkSeller(ctx, c) {
+			c.JSON(http.StatusForbidden, gin.H{"Error": "forbidden"})
+			return
+		}
+		var product models.Product
+		if err := c.BindJSON(&product); err != nil {
+			log.Println(err)
+			c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
+			return
+		}
+
+		if product.Product_ID.Hex() == "" {
+			c.Header("content-type", "application/json")
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid ID"})
+			c.Abort()
+			return
+		}
+		if product.Product_ID.IsZero() {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid Product ID"})
+			c.Abort()
+			return
+		}
+		filter := primitive.M{"_id": product.Product_ID}
+
+		update := bson.M{}
+
+		if product.Product_Name != "" {
+			update["name"] = product.Product_Name
+		}
+		if product.Category != "" {
+			update["category"] = product.Category
+		}
+
+		if product.Discription != "" {
+			update["discription"] = product.Discription
+		}
+
+		if product.Price != "" {
+			update["price"] = product.Price
+		}
+
+		if product.SKU != "" {
+			update["sku"] = product.SKU
+		}
+
+		if product.Attributes != nil {
+			update["attributes"] = product.Attributes
+		}
+
+		updated_at, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		update["updated_at"] = updated_at
+
+		var newProduct models.Product
+		err := ProductCollection.FindOneAndUpdate(ctx, filter, update).Decode(&newProduct)
+		if err != nil {
+			if errors.Is(err, mongo.ErrNoDocuments) {
+				c.JSON(http.StatusNotFound, gin.H{"Error": "Product not found"})
+				return
+			}
+			c.Header("content-type", "application/json")
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
+			c.Abort()
+			return
+		}
+
+		c.JSON(http.StatusOK, product)
+	}
 
 }

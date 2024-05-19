@@ -14,7 +14,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // update user profile
@@ -147,18 +146,9 @@ func GetUsersDetails_Admin() gin.HandlerFunc {
 		defer cancel()
 
 		// Define the projection to include only the specified fields
-		projection := bson.M{
-			"_id":        1,
-			"email":      1,
-			"mobileno":   1,
-			"username":   1,
-			"address":    1,
-			"created_at": 1,
-			"updated_at": 1,
-		}
 
 		// Query the collection with the projection
-		cursor, err := UserCollection.Find(ctx, bson.M{}, options.Find().SetProjection(projection))
+		cursor, err := UserCollection.Find(ctx, bson.M{})
 		if err != nil {
 			fmt.Println(err)
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Error occurred while fetching users"})

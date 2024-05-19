@@ -106,5 +106,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 
 	incomingRoutes.GET("/admin/all-users", controllers.GetUsersDetails_Admin())
 
+	incomingRoutes.PUT("product/remove-image/:id", controllers.DeleteImageFromProduct())
+
 	//incomingRoutes.GET("/getcategory", controllers.GetCategory())
 }
