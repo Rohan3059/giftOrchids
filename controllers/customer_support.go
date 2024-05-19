@@ -306,7 +306,8 @@ func AddMessage() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		ticketId := c.Param("id")
-		var name = "Admin"
+
+		var name string
 
 		uid, exist := c.Get("uid")
 		if !exist {
@@ -314,22 +315,16 @@ func AddMessage() gin.HandlerFunc {
 			return
 		}
 
-		//objectid
+		if checkAdmin(ctx, c) {
+			name = "Admin"
+		}
+
 		id, err := primitive.ObjectIDFromHex(uid.(string))
 
 		if err != nil {
 
 			c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
 			return
-		}
-
-		//find seller
-		var foundSeller models.Seller
-		err = SellerCollection.FindOne(ctx, bson.M{"_id": id}).Decode(&foundSeller)
-		if err == nil {
-			if foundSeller.User_type == utils.Seller {
-				name = foundSeller.Company_Name
-			}
 		}
 
 		if ticketId == "" {
@@ -342,6 +337,18 @@ func AddMessage() gin.HandlerFunc {
 		if findErr != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Invalid support ticket"})
 			return
+		}
+
+		if checkSeller(ctx, c) {
+			var foundSeller models.Seller
+			err = SellerCollection.FindOne(ctx, bson.M{"_id": id}).Decode(&foundSeller)
+			if err == nil {
+				if foundSeller.User_type == utils.Seller {
+					name = foundSeller.Company_Name
+				}
+			}
+		} else {
+			name = ticket.Name
 		}
 
 		var message models.ChatMessage
