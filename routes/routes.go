@@ -53,6 +53,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/seller/registration", controllers.SellerEmailUpdate())
 	incomingRoutes.POST("/seller/licenseDetailsUpdate", controllers.SellerLicenseUpdate())
 	incomingRoutes.POST("/seller-login", controllers.SendLoginOTP())
+	incomingRoutes.POST("/seller/verify-otp", controllers.SellerOtpVerfication())
 
 	incomingRoutes.GET("/get-docs", controllers.DownloadSellerDocs())
 
@@ -66,6 +67,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.Use(middleware.Authentication())
 	incomingRoutes.GET("/seller/products", controllers.GetAllProductsForASellerHandler())
 	incomingRoutes.POST("/seller/update/business-details", controllers.UpdateSellerBusinessDetails())
+	incomingRoutes.POST("/seller/profile/update/owner-details", controllers.UpdateOwnerDetails())
 	incomingRoutes.POST("/seller/update-product", controllers.AddProductReferenceHandler())
 	incomingRoutes.POST("/seller/update-profilepicture", controllers.SellerUpdateProfilePictureHandler())
 	incomingRoutes.GET("/seller/info", controllers.LoadSeller())

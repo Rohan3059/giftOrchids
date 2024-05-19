@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -35,6 +36,8 @@ func UpdateUserProfile() gin.HandlerFunc {
 			return
 		}
 
+		fmt.Println(user)
+
 		email := user.Email
 		mobile := user.MobileNo
 		name := user.UserName
@@ -59,7 +62,7 @@ func UpdateUserProfile() gin.HandlerFunc {
 		}
 
 		if address != "" {
-			update = append(update, bson.M{"$set": bson.M{"addres": address}})
+			update = append(update, bson.M{"$set": bson.M{"address": address}})
 		}
 
 		update = append(update, bson.M{"$set": bson.M{"updated_at": updated_at}})

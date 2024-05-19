@@ -116,18 +116,18 @@ type Seller struct {
 }
 
 type OwnerDetails struct {
-	Name             string `json:"name" `
-	Email            string `json:"email" `
-	MobileNo         string `json:"mobileno"`
-	Gender           string `json:"gender"`
-	DateOfBirth      string `json:"dateofbirth"`
-	AadharNumber     string `json:"aadharNumber"`
-	HavePassport     bool   `json:"havePassport"`
-	PassportNo       string `json:"passportNo"`
-	AadharDocument   string `json:"aadharDoc"`
-	PassportDocument string `json:"passportDoc"`
-	PAN              string `json:"pan"`
-	PanDocument      string `json:"panDoc"`
+	Name             string `json:"name" bson:"name" `
+	Email            string `json:"email" bson:"email" `
+	MobileNo         string `json:"mobileno" bson:"mobileno"`
+	Gender           string `json:"gender" bson:"gender"`
+	DateOfBirth      string `json:"dateofbirth" bson:"dateofbirth" `
+	AadharNumber     string `json:"aadharNumber" bson:"aadharNumber"`
+	HavePassport     bool   `json:"havePassport" bson:"havePassport"`
+	PassportNo       string `json:"passportNo" bson:"passportNo"`
+	AadharDocument   string `json:"aadharDoc" bson:"aadharDoc"`
+	PassportDocument string `json:"passportDoc" bson:"passportDoc"`
+	PAN              string `json:"pan" bson:"pan"`
+	PanDocument      string `json:"panDoc" bson:"panDoc"`
 }
 
 type CompanyDetail struct {
@@ -175,16 +175,16 @@ type Address struct {
 
 type USer struct {
 	User_id       primitive.ObjectID `bson:"_id"`
-	UserName      string             `json:"user_name"`
-	MobileNo      string             `json:"mobileno"`
-	Email         string             `json:"email"`
-	OTP           string             `json:"otp"`
-	Token         string             `json:"token"`
-	Refresh_token string             `json:"refresh_token"`
-	Created_at    time.Time          `json:"created_at"`
-	Updated_at    time.Time          `json:"updated_at"`
-	User_Address  string             `json:"addres"`
-	IsArchived    bool               `json:"archived"`
+	UserName      string             `json:"user_name" bson:"user_name" `
+	MobileNo      string             `json:"mobileno" bson:"mobileno" `
+	Email         string             `json:"email" bson:"email"`
+	OTP           string             `json:"otp" bson:"otp" `
+	Token         string             `json:"token" bson:"token" `
+	Refresh_token string             `json:"refresh_token" bson:"refresh_token"`
+	Created_at    time.Time          `json:"created_at" bson:"created_at" `
+	Updated_at    time.Time          `json:"updated_at" bson:"updated_at"`
+	User_Address  string             `json:"address" bson:"address"`
+	IsArchived    bool               `json:"archived" bson:"archived"`
 }
 
 type Enquire struct {

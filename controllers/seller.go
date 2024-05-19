@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/kravi0/BizGrowth-backend/database"
 	"github.com/kravi0/BizGrowth-backend/models"
+	"github.com/kravi0/BizGrowth-backend/utils"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -465,6 +466,183 @@ func UpdateSellerBusinessDetails() gin.HandlerFunc {
 	}
 }
 
+// update owner details
+func UpdateOwnerDetails() gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		id, exist := c.Get("uid")
+		if !exist {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "You're not authorized to perform this action"})
+			return
+		}
+
+		sellerId, err := primitive.ObjectIDFromHex(id.(string))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid Seller"})
+			return
+		}
+
+		var seller models.Seller
+
+		findErr := SellerCollection.FindOne(ctx, bson.M{"_id": sellerId}).Decode(&seller)
+		if findErr != nil {
+			c.Header("content-type", "application/json")
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to find seller with this phone number"})
+			c.Abort()
+			return
+		}
+
+		update := bson.M{}
+
+		OwnerName := c.PostForm("name")
+		OwnerEmail := c.PostForm("email")
+		OwnerMobileNo := c.PostForm("mobileno")
+		OwnerGender := c.PostForm("gender")
+		dob := c.PostForm("dateofbirth")
+		aadharNumber := c.PostForm("aadharNumber")
+		pan := c.PostForm("pan")
+		passportNo := c.PostForm("passportNo")
+
+		form, err := c.MultipartForm()
+		if err != nil {
+			log.Println("error while multipart")
+			c.String(http.StatusBadRequest, "get form err: %s", err.Error())
+			return
+		}
+
+		aadharDoc := form.File["aadharDoc"]
+		panDoc := form.File["panDoc"]
+		passportDoc := form.File["passportDoc"]
+
+		var aadharDocUrl string
+		var panDocUrl string
+		var passportDocUrl string
+
+		if len(aadharDoc) > 0 {
+			aadharDocFile, err := aadharDoc[0].Open()
+			if err != nil {
+				log.Println("error while opening file")
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to process aadhar document"})
+				return
+			}
+			defer aadharDocFile.Close()
+			url, saveError := saveFile(aadharDocFile, aadharDoc[0])
+			if saveError != nil {
+				c.JSON(http.StatusServiceUnavailable, gin.H{"Error": "Something went wrong while saving aadharDoc document"})
+				return
+			}
+			aadharDocUrl = url
+		}
+
+		if len(panDoc) > 0 {
+			panDocFile, err := panDoc[0].Open()
+			if err != nil {
+				log.Println("error while opening file")
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to process PAN document"})
+				return
+			}
+			defer panDocFile.Close()
+			url, saveError := saveFile(panDocFile, panDoc[0])
+			if saveError != nil {
+				c.JSON(http.StatusServiceUnavailable, gin.H{"Error": "Something went wrong while saving panDoc document"})
+				return
+			}
+			panDocUrl = url
+		}
+
+		if len(passportDoc) > 0 {
+			passportDocFile, err := passportDoc[0].Open()
+			if err != nil {
+				log.Println("error while opening file")
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to process passport document"})
+				return
+			}
+			defer passportDocFile.Close()
+			url, saveError := saveFile(passportDocFile, passportDoc[0])
+			if saveError != nil {
+				c.JSON(http.StatusServiceUnavailable, gin.H{"Error": "Something went wrong while saving passportDoc document"})
+				return
+			}
+			passportDocUrl = url
+		}
+
+		if OwnerName != "" {
+			update["ownerdetail.name"] = OwnerName
+		}
+
+		if OwnerEmail != "" {
+			update["ownerdetail.email"] = OwnerEmail
+		}
+
+		if OwnerMobileNo != "" {
+			update["ownerdetail.mobileno"] = OwnerMobileNo
+		}
+
+		if OwnerGender != "" {
+			update["ownerdetail.gender"] = OwnerGender
+		}
+
+		if dob != "" {
+			update["ownerdetail.dateofbirth"] = dob
+		}
+
+		if aadharNumber != "" {
+			update["ownerdetail.aadharNumber"] = aadharNumber
+		}
+
+		if pan != "" {
+			update["ownerdetail.pan"] = pan
+		}
+
+		if passportNo != "" {
+			update["ownerdetail.passportNo"] = passportNo
+			update["ownerdetail.havepassport"] = true
+		}
+
+		if aadharDocUrl != "" {
+			update["ownerdetail.aadharDoc"] = aadharDocUrl
+		}
+
+		if panDocUrl != "" {
+			update["ownerdetail.panDoc"] = panDocUrl
+		}
+
+		if passportDocUrl != "" {
+			update["ownerdetail.passportDoc"] = passportDocUrl
+		}
+
+		update["approved"] = false
+
+		updated_at, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+
+		update["updated_at"] = updated_at
+
+		if len(update) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "No valid fields to update"})
+			return
+		}
+
+		filter := bson.M{"_id": sellerId}
+		fmt.Println(update)
+
+		updateError := SellerCollection.FindOneAndUpdate(ctx, filter, bson.M{"$set": update}).Decode(&seller)
+		if updateError != nil {
+			if errors.Is(updateError, mongo.ErrNoDocuments) {
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "No seller found"})
+				return
+			}
+
+			log.Println(updateError)
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to save owner details, try again"})
+			return
+		}
+
+		c.String(http.StatusOK, "Owner details updated successfully!")
+	}
+}
+
 func SellerPasswordConfirmation() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
@@ -545,6 +723,52 @@ func UpdatePassword() gin.HandlerFunc {
 
 		c.JSON(http.StatusOK, gin.H{"message": "Password updated successfully"})
 
+	}
+}
+
+func SellerOtpVerfication() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		contactNo := c.PostForm("mobileno")
+		if contactNo == "" {
+			c.Header("content-type", "application/json")
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "phone number can't be empty"})
+			c.Abort()
+			return
+		}
+		otp := c.PostForm("otp")
+		if otp == "" {
+			c.Header("content-type", "application/json")
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "otp can't be empty"})
+			c.Abort()
+			return
+		}
+		filter := primitive.M{utils.Mobileno: contactNo}
+		var seller models.Seller
+		err := SellerCollection.FindOne(ctx, filter).Decode(&seller)
+
+		if err != nil && err != mongo.ErrNoDocuments {
+			c.Header("content-type", "application/json")
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
+			c.Abort()
+			return
+		}
+		if err == mongo.ErrNoDocuments {
+			c.Header("content-type", "application/json")
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Mobile number doesn't exist"})
+			c.Abort()
+			return
+		}
+
+		if seller.OTP == otp {
+			SellerCollection.FindOneAndUpdate(ctx, filter, primitive.M{"otp": ""})
+			c.Header("content-type", "application/json")
+			c.JSON(http.StatusOK, gin.H{"success": "verified"})
+		} else {
+			c.Header("content-type", "application/json")
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "invalid OTP"})
+		}
 	}
 }
 
@@ -674,8 +898,6 @@ func SellerDocDownload(c *gin.Context, sellerId primitive.ObjectID, docType stri
 	return nil, errors.New("unable to download file")
 
 }
-
-//download all files in a zip
 
 func DownloadAllFiles() gin.HandlerFunc {
 
