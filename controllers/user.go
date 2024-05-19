@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -12,6 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // update user profile
@@ -85,5 +88,89 @@ func UpdateUserProfile() gin.HandlerFunc {
 			"success": "profile updated successfully",
 		})
 
+	}
+}
+
+/*Admin Route function*/
+/* fetch All user details name,email,mobileno, address */
+func GetAllUsers() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
+
+		recordPerPage, err := strconv.Atoi(c.Query("recordPerPage"))
+		if err != nil || recordPerPage < 1 {
+			recordPerPage = 10
+		}
+
+		page, err1 := strconv.Atoi(c.Query("page"))
+		if err1 != nil || page < 1 {
+			page = 1
+		}
+
+		startIndex := (page - 1) * recordPerPage
+		startIndex, err = strconv.Atoi(c.Query("startIndex"))
+
+		matchStage := bson.D{{"$match", bson.D{{}}}}
+
+		countStage := bson.D{{"$count", "count"}}
+
+		projectStage := bson.D{
+			{"$project", bson.D{
+				{"_id", 0},
+				{"total", 1},
+				{"userItems", bson.D{{"$slice", []interface{}{"$data", startIndex, recordPerPage}}}},
+			}}}
+
+		result, err := UserCollection.Aggregate(ctx, mongo.Pipeline{
+			matchStage, countStage, projectStage,
+		})
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occured while listing user items"})
+		}
+
+		var allusers []bson.M
+
+		if err = result.All(ctx, &allusers); err != nil {
+			log.Fatal(err)
+		}
+
+		c.JSON(http.StatusOK, allusers[0])
+
+	}
+}
+
+func GetUsersDetails_Admin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		// Define the projection to include only the specified fields
+		projection := bson.M{
+			"_id":        1,
+			"email":      1,
+			"mobileno":   1,
+			"username":   1,
+			"address":    1,
+			"created_at": 1,
+			"updated_at": 1,
+		}
+
+		// Query the collection with the projection
+		cursor, err := UserCollection.Find(ctx, bson.M{}, options.Find().SetProjection(projection))
+		if err != nil {
+			fmt.Println(err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Error occurred while fetching users"})
+			return
+		}
+
+		var results []models.USer
+		if err = cursor.All(context.TODO(), &results); err != nil {
+			panic(err)
+		}
+
+		// Return the users as JSON
+		c.JSON(http.StatusOK, results)
 	}
 }

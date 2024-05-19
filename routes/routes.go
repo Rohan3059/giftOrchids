@@ -104,5 +104,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 
 	incomingRoutes.GET("/admin/dashboard/analytics", controllers.GetAnalytics())
 
+	incomingRoutes.GET("/admin/all-users", controllers.GetUsersDetails_Admin())
+
 	//incomingRoutes.GET("/getcategory", controllers.GetCategory())
 }
