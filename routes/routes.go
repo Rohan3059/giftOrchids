@@ -78,7 +78,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/admin/addcategory", controllers.AddCategory())
 	incomingRoutes.GET("/admin/categories", controllers.AdminGetCategoryHandler())
 	incomingRoutes.POST("/admin/category/approve/:id", controllers.ApproveCategory())
-	incomingRoutes.PUT("/admin/updateProduct/:id", controllers.UpdateProduct())
+	incomingRoutes.PUT("/admin/update-product/:id", controllers.UpdateProduct())
 	incomingRoutes.POST("/admin/add-product", controllers.ProductViewerAdmin())
 	incomingRoutes.GET("/admin/get-enquiry", controllers.GETEnquiryHandler())
 	incomingRoutes.GET("/admin/enquiry/:id", controllers.GetAdminSingleEnquiry())
