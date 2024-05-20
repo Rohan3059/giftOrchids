@@ -385,11 +385,15 @@ func getSellerDetails(ctx context.Context, id string) map[string]interface{} {
 
 }
 
-// GetAllRequirementMessages retrieves all RequirementMessages
 func GetAllRequirementMessages() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
+
+		if !checkAdmin(ctx, c) {
+			c.JSON(http.StatusForbidden, gin.H{"Error": "forbidden"})
+			return
+		}
 
 		cursor, err := RequirementMessageCollection.Find(ctx, bson.M{})
 		if err != nil {
@@ -405,6 +409,35 @@ func GetAllRequirementMessages() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, messages)
+	}
+}
+
+// get  by id
+func GetRequirementMessage() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if !checkAdmin(ctx, c) {
+			c.JSON(http.StatusForbidden, gin.H{"Error": "forbidden"})
+			return
+		}
+
+		id := c.Param("id")
+
+		var message models.RequirementMessage
+		//convert id
+
+		objID, _ := primitive.ObjectIDFromHex(id)
+
+		err := RequirementMessageCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&message)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, message)
 	}
 }
 

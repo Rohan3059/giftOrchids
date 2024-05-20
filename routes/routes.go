@@ -109,5 +109,11 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 
 	incomingRoutes.PUT("product/remove-image/:id", controllers.DeleteImageFromProduct())
 
+	incomingRoutes.GET("/admin/requirement-messages", controllers.GetAllRequirementMessages())
+
+	incomingRoutes.GET("/admin/requirement-message/:id", controllers.GetRequirementMessage())
+
+	incomingRoutes.POST("/admin/add-reviews", controllers.AddReviewByAdmin())
+
 	//incomingRoutes.GET("/getcategory", controllers.GetCategory())
 }
