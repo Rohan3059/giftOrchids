@@ -95,6 +95,7 @@ func CreateTicket() gin.HandlerFunc {
 		if ticket.Email == "" || ticket.Subject == "" || ticket.Message == "" || ticket.Name == "" || ticket.MobileNo == "" {
 
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "All fields are required"})
+			return
 		}
 
 		ticket.Attachments = attachmentsUrl
@@ -132,6 +133,19 @@ func GetTickets() gin.HandlerFunc {
 		if err := cursor.All(ctx, &tickets); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
 			return
+		}
+
+		//go through each ticket , iterate over attachments, create presignurl and add back
+
+		for i, ticket := range tickets {
+			for j, attachment := range ticket.Attachments {
+				url, err := getPresignURL(attachment)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+					return
+				}
+				tickets[i].Attachments[j] = url
+			}
 		}
 
 		c.JSON(http.StatusOK, tickets)
@@ -219,6 +233,15 @@ func GetTicketById() gin.HandlerFunc {
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
 			return
+		}
+
+		for j, attachment := range ticket.Attachments {
+			url, err := getPresignURL(attachment)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+				return
+			}
+			ticket.Attachments[j] = url
 		}
 
 		c.JSON(http.StatusOK, ticket)

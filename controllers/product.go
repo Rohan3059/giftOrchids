@@ -443,70 +443,149 @@ func GetProduct() gin.HandlerFunc {
 // this will update product need to pass whole struct json data
 func UpdateProduct() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
+
 		if !checkAdmin(ctx, c) {
-			c.JSON(http.StatusForbidden, gin.H{"Error": "forbidden"})
+			c.JSON(http.StatusForbidden, gin.H{"Error": "You are not authorized to perform this action."})
 			return
 		}
+
+		id := c.Param("id")
+		if id == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Product ID is required"})
+			return
+		}
+
+		productID, _ := primitive.ObjectIDFromHex(id)
+		filter := bson.M{"_id": productID}
+
 		var product models.Product
-		if err := c.BindJSON(&product); err != nil {
-			log.Println(err)
-			c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
-			return
-		}
 
-		if product.Product_ID.Hex() == "" {
-			c.Header("content-type", "application/json")
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid ID"})
-			c.Abort()
-			return
-		}
-		if product.Product_ID.IsZero() {
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid Product ID"})
-			c.Abort()
-			return
-		}
-		filter := primitive.M{"_id": product.Product_ID}
-
-		update := bson.M{}
-
-		if product.Product_Name != "" {
-			update["name"] = product.Product_Name
-		}
-		if product.Category != "" {
-			update["category"] = product.Category
-		}
-
-		if product.Discription != "" {
-			update["discription"] = product.Discription
-		}
-
-		if product.Price != "" {
-			update["price"] = product.Price
-		}
-
-		if product.SKU != "" {
-			update["sku"] = product.SKU
-		}
-
-		updated_at, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
-		update["updated_at"] = updated_at
-
-		var newProduct models.Product
-		err := ProductCollection.FindOneAndUpdate(ctx, filter, update).Decode(&newProduct)
+		err := ProductCollection.FindOne(ctx, filter).Decode(&product)
 		if err != nil {
-			if errors.Is(err, mongo.ErrNoDocuments) {
-				c.JSON(http.StatusNotFound, gin.H{"Error": "Product not found"})
+			c.JSON(http.StatusNotFound, gin.H{"Error": "Product not found"})
+			return
+		}
+
+		enverr := godotenv.Load()
+		if enverr != nil {
+			log.Fatal(err)
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
+			return
+		}
+
+		product_name := c.PostForm("product_name")
+
+		attributesList := c.PostForm("attributes")
+		priceRanges := c.PostForm("priceRange")
+
+		var productPriceRanges []models.ProductPriceRange
+		if priceRanges != "" {
+			if err := json.Unmarshal([]byte(priceRanges), &productPriceRanges); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "Error while parsing price range"})
 				return
 			}
-			c.Header("content-type", "application/json")
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
-			c.Abort()
+		}
+
+		var attributes []models.AttributeValue
+		if attributesList != "" {
+			if err := json.Unmarshal([]byte(attributesList), &attributes); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"Error": "Error while parsing attributes"})
+				return
+			}
+		}
+
+		price := strings.TrimSpace(c.PostForm("price"))
+		description := c.PostForm("discription")
+		category := c.PostForm("category")
+		sku := c.PostForm("sku")
+		updated_at := time.Now()
+
+		form, err := c.MultipartForm()
+		if err != nil {
+			log.Println("error while multipart")
+			c.String(http.StatusBadRequest, "get form err: %s", err.Error())
+			return
+		}
+		files := form.File["files"]
+
+		var errors []string
+		var uploadedURLs []string
+		for _, file := range files {
+			f, err := file.Open()
+			if err != nil {
+				log.Fatal(err)
+				c.String(http.StatusInternalServerError, "get form err: %s", err.Error())
+				return
+			}
+			uploadedURL, err := saveFile(f, file)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("Error saving file %s: %s", file.Filename, err.Error()))
+			} else {
+				uploadedURLs = append(uploadedURLs, uploadedURL)
+			}
+		}
+		if len(errors) > 0 {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": errors})
 			return
 		}
 
-		c.JSON(http.StatusOK, product)
+		update := bson.M{}
+		if product_name != "" {
+			update["product_name"] = product_name
+		}
+
+		if sku != "" {
+			update["sku"] = sku
+		}
+
+		if price != "" {
+			update["price"] = price
+		}
+		if description != "" {
+			update["discription"] = description
+		}
+		if category != "" {
+			update["category"] = category
+		}
+		update["updated_at"] = updated_at
+
+		pushUpdates := bson.M{}
+		if len(uploadedURLs) > 0 {
+			pushUpdates["image"] = bson.M{
+				"$each": uploadedURLs,
+			}
+		}
+		if len(productPriceRanges) > 0 {
+			pushUpdates["pricerange"] = bson.M{
+				"$each": productPriceRanges,
+			}
+		}
+		if len(attributes) > 0 {
+			pushUpdates["attributes"] = bson.M{
+				"$each": attributes,
+			}
+		}
+
+		updateOperation := bson.M{"$set": update}
+		if len(pushUpdates) > 0 {
+			updateOperation["$push"] = pushUpdates
+		}
+
+		result, err := ProductCollection.UpdateOne(ctx, filter, updateOperation)
+		if err != nil {
+			fmt.Println(err)
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Error while updating product"})
+			return
+		}
+
+		if result.MatchedCount == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"Error": "Product not found"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"Message": "Product updated successfully"})
 	}
 
 }
