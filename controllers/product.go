@@ -483,16 +483,15 @@ func UpdateProduct() gin.HandlerFunc {
 		var productPriceRanges []models.ProductPriceRange
 		if priceRanges != "" {
 			if err := json.Unmarshal([]byte(priceRanges), &productPriceRanges); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"Error": "Error while parsing price range"})
-				return
+				fmt.Println(err)
+
 			}
 		}
 
 		var attributes []models.AttributeValue
 		if attributesList != "" {
 			if err := json.Unmarshal([]byte(attributesList), &attributes); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"Error": "Error while parsing attributes"})
-				return
+				fmt.Println(err)
 			}
 		}
 
