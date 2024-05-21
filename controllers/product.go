@@ -249,7 +249,6 @@ func ProductViewerAdmin() gin.HandlerFunc {
 		product.Product_ID = primitive.NewObjectID()
 		product.Product_Name = c.PostForm("product_name")
 
-		product.SKU = c.PostForm("sku")
 		attributesList := c.PostForm("attributes")
 		priceRanges := c.PostForm("priceRange")
 		fmt.Println(priceRanges)
@@ -273,18 +272,6 @@ func ProductViewerAdmin() gin.HandlerFunc {
 		}
 
 		product.Attributes = attributes
-
-		count, err := ProductCollection.CountDocuments(ctx, primitive.M{"sku": product.SKU})
-
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
-			return
-		}
-		if count > 0 {
-			log.Println("Error")
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "product with this name is already present"})
-			return
-		}
 
 		price := strings.TrimSpace(c.PostForm("price"))
 
@@ -751,7 +738,7 @@ func RejectProduct() gin.HandlerFunc {
 		var product models.Product
 
 		// Update the product as rejected
-		update := bson.M{"$set": bson.M{"isRejected": true, "rejection_note": rejection_note}}
+		update := bson.M{"$set": bson.M{"approved": false, "isRejected": true, "rejection_note": rejection_note}}
 		err = ProductCollection.FindOneAndUpdate(ctx, bson.M{"_id": objID}, update).Decode(&product)
 		if err != nil {
 
@@ -797,16 +784,17 @@ func DeleteProduct() gin.HandlerFunc {
 		// Prepare filter to find product by ID
 		filter := primitive.M{"_id": objID}
 
-		// Perform delete operation
-		result, err := ProductCollection.DeleteOne(ctx, filter)
+		//update and make it arhcive
+		update := bson.M{"$set": bson.M{"isArchived": true, "approved": false, "isRejected": false}}
+
+		//update
+		result, err := ProductCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			log.Println(err)
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Something went wrong"})
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to delete product"})
 			return
 		}
 
-		// Check if any document was deleted
-		if result.DeletedCount < 1 {
+		if result.MatchedCount < 1 {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to find Product"})
 			return
 		}

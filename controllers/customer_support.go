@@ -379,6 +379,7 @@ func AddMessage() gin.HandlerFunc {
 		message.Sender = name
 
 		if err := c.BindJSON(&message); err != nil {
+			fmt.Println(err)
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -396,11 +397,14 @@ func AddMessage() gin.HandlerFunc {
 
 			//create new
 			chatMessage := models.SupportChatMessage{
+				SupportChatId:   primitive.NewObjectID(),
 				SupportTicketId: ticketId,
 				Messages:        []models.ChatMessage{message},
 			}
+
 			_, insertErr := SupportChatMessage.InsertOne(ctx, chatMessage)
 			if insertErr != nil {
+				fmt.Println(insertErr)
 				c.JSON(http.StatusBadRequest, gin.H{"Error": insertErr.Error()})
 				return
 			}

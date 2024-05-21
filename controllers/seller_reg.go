@@ -774,6 +774,10 @@ func LoginValidatePasswordOTP() gin.HandlerFunc {
 			return
 		}
 
+		fmt.Println(founduser.Password)
+
+		fmt.Println(user.Password)
+
 		passwordIsValid, msg := Verifypassword(user.Password, founduser.Password)
 		if founduser.OTP != user.OTP || !passwordIsValid {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "OTP or password is incorrect"})

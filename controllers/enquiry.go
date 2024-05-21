@@ -450,8 +450,16 @@ func CreateRequirementMessage() gin.HandlerFunc {
 			return
 		}
 
+		if message.Message == "" || message.Name == "" || message.MobileNo == "" || message.Email == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Please provide all the required fields"})
+			return
+		}
+
 		// Generate new ObjectID
 		message.Requirement_id = primitive.NewObjectID()
+
+		// created_at
+		message.Created_at = time.Now()
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()

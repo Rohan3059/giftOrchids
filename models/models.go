@@ -211,6 +211,7 @@ type RequirementMessage struct {
 	Email          string             `json:"email"`
 	MobileNo       string             `json:"mobileno"`
 	Message        string             `json:"message"`
+	Created_at     time.Time          `json:"created_at"`
 }
 
 type CustomerSupportTicket struct {
