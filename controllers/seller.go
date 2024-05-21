@@ -980,6 +980,40 @@ func LoadSeller() gin.HandlerFunc {
 	}
 }
 
+func LoadAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+
+		defer cancel()
+		if !checkAdmin(ctx, c) {
+			c.JSON(http.StatusForbidden, gin.H{"Error": "You are not authorized to access this "})
+			return
+		}
+
+		sellerID, exists := c.Get("uid")
+		if !exists {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Seller ID not found in context"})
+			return
+		}
+
+		sellerObjID, err := primitive.ObjectIDFromHex(sellerID.(string))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Seller ID"})
+			return
+		}
+
+		var seller models.Seller
+		err = SellerCollection.FindOne(ctx, bson.M{"_id": sellerObjID}).Decode(&seller)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Admin access granted"})
+	}
+}
+
 func getPresignUrlOfSellerBusinessDoc(companyDetail models.CompanyDetail) models.CompanyDetail {
 
 	if companyDetail.GSTINDoc != "" {

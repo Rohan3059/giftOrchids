@@ -116,5 +116,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 
 	incomingRoutes.POST("/admin/add-reviews", controllers.AddReviewByAdmin())
 
+	incomingRoutes.POST("/admin/load", controllers.LoadAdmin())
+
 	//incomingRoutes.GET("/getcategory", controllers.GetCategory())
 }
