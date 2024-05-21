@@ -330,23 +330,8 @@ func AddMessage() gin.HandlerFunc {
 		defer cancel()
 		ticketId := c.Param("id")
 
-		var name string
-
-		uid, exist := c.Get("uid")
-		if !exist {
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not authorized to perform this action"})
-			return
-		}
-
-		if checkAdmin(ctx, c) {
-			name = "Admin"
-		}
-
-		id, err := primitive.ObjectIDFromHex(uid.(string))
-
-		if err != nil {
-
-			c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
+		if !checkAdmin(ctx, c) {
+			c.JSON(http.StatusUnauthorized, gin.H{"Error": "Unauthorized"})
 			return
 		}
 
@@ -362,16 +347,108 @@ func AddMessage() gin.HandlerFunc {
 			return
 		}
 
-		if checkSeller(ctx, c) {
-			var foundSeller models.Seller
-			err = SellerCollection.FindOne(ctx, bson.M{"_id": id}).Decode(&foundSeller)
-			if err == nil {
-				if foundSeller.User_type == utils.Seller {
-					name = foundSeller.Company_Name
-				}
+		var message models.ChatMessage
+		message.SentAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		message.Sender = "Admin"
+
+		if err := c.BindJSON(&message); err != nil {
+			fmt.Println(err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		updatedAt, err := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+			return
+		}
+
+		var existingChatMessage models.SupportChatMessage
+
+		finderr := SupportChatMessage.FindOne(ctx, bson.M{"ticketId": ticketId}).Decode(&existingChatMessage)
+		if finderr != nil {
+
+			//create new
+			chatMessage := models.SupportChatMessage{
+				SupportChatId:   primitive.NewObjectID(),
+				SupportTicketId: ticketId,
+				Messages:        []models.ChatMessage{message},
 			}
-		} else {
-			name = ticket.Name
+
+			_, insertErr := SupportChatMessage.InsertOne(ctx, chatMessage)
+			if insertErr != nil {
+				fmt.Println(insertErr)
+				c.JSON(http.StatusBadRequest, gin.H{"Error": insertErr.Error()})
+				return
+			}
+			//update SupportTicker with id of SupportChatMessage
+
+			_, updateErr := SupportTickerCollection.UpdateOne(ctx, bson.M{"_id": ticketId}, bson.M{"$set": bson.M{
+				"chatmessage": chatMessage.SupportChatId,
+				"updated_at":  updatedAt,
+			}})
+			if updateErr != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"Error": updateErr.Error()})
+				return
+			}
+		}
+
+		_, updateErr := SupportChatMessage.UpdateOne(ctx, bson.M{"ticketId": ticketId}, bson.M{"$push": bson.M{
+			"messages": message,
+		}})
+		if updateErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": updateErr.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Message has been sent successfully",
+		})
+
+	}
+
+}
+
+func AddSellerMessage() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		ticketId := c.Param("id")
+
+		if !checkSeller(ctx, c) {
+			c.JSON(http.StatusUnauthorized, gin.H{"Error": "Unauthorized"})
+			return
+		}
+
+		uid, exist := c.Get("uid")
+
+		if !exist {
+			c.JSON(http.StatusUnauthorized, gin.H{"Error": "Unauthorized"})
+			return
+		}
+
+		//convert to seller id objectid
+		sellerId, _ := primitive.ObjectIDFromHex(uid.(string))
+
+		var foundSeller models.Seller
+		err := SellerCollection.FindOne(ctx, bson.M{"_id": sellerId}).Decode(&foundSeller)
+
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to find seller"})
+			return
+		}
+
+		name := foundSeller.Company_Name
+
+		if ticketId == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "ticket id is required"})
+			return
+		}
+
+		var ticket models.CustomerSupportTicket
+		findErr := SupportTickerCollection.FindOne(ctx, bson.M{"ticketid": ticketId}).Decode(&ticket)
+		if findErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Invalid support ticket"})
+			return
 		}
 
 		var message models.ChatMessage
@@ -419,8 +496,6 @@ func AddMessage() gin.HandlerFunc {
 				return
 			}
 		}
-
-		//update and update chatmessage too
 
 		_, updateErr := SupportChatMessage.UpdateOne(ctx, bson.M{"ticketId": ticketId}, bson.M{"$push": bson.M{
 			"messages": message,

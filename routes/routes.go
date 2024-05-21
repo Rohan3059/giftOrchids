@@ -72,6 +72,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/seller/update-profilepicture", controllers.SellerUpdateProfilePictureHandler())
 	incomingRoutes.GET("/seller/support-tickets", controllers.GetSellerSupportTicket())
 	incomingRoutes.GET("/seller/info", controllers.LoadSeller())
+	incomingRoutes.POST("/seller/ticket/chat/message/:id", controllers.AddSellerMessage())
 	incomingRoutes.POST("/seller/confirm-password", controllers.SellerPasswordConfirmation())
 	incomingRoutes.POST("/seller/update-password", controllers.UpdatePassword())
 	incomingRoutes.POST("/admin/approveSeller", controllers.ApproveSeller())
