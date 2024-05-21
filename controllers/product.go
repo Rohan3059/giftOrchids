@@ -702,7 +702,7 @@ func ApproveProduct() gin.HandlerFunc {
 		}
 
 		// Update the product as approved
-		update := bson.M{"$set": bson.M{"approved": true, "isRejected": true}}
+		update := bson.M{"$set": bson.M{"approved": true, "isRejected": false}}
 		_, err = ProductCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": "could not approve product"})
