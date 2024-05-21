@@ -146,7 +146,7 @@ func SellerEmailUpdate() gin.HandlerFunc {
 		var seller models.Seller
 		mobileno := c.PostForm("mobileno")
 		email := c.PostForm("email")
-		password := HashPassword(c.PostForm("password"))
+		password := c.PostForm("password")
 
 		if mobileno == "" || email == "" || password == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "All fields are required"})
@@ -774,14 +774,10 @@ func LoginValidatePasswordOTP() gin.HandlerFunc {
 			return
 		}
 
-		fmt.Println(founduser.Password)
-
-		fmt.Println(user.Password)
-
-		passwordIsValid, msg := Verifypassword(user.Password, founduser.Password)
+		passwordIsValid, _ := Verifypassword(user.Password, founduser.Password)
 		if founduser.OTP != user.OTP || !passwordIsValid {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "OTP or password is incorrect"})
-			fmt.Println(msg)
+
 			return
 		}
 		token, refreshToken, _ := generate.TokenGenerator(founduser.Email, founduser.MobileNo, founduser.Company_Name, founduser.Seller_ID)
