@@ -1057,10 +1057,7 @@ func MakeProductFeatured() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid request"})
 
 			return
-
 		}
-
-		//parse bool
 
 		isFeaturedBool, _ := strconv.ParseBool(isFeatured)
 
@@ -1105,7 +1102,7 @@ func GetFeaturedProducts() gin.HandlerFunc {
 
 		defer cancel()
 
-		cursor, err := ProductCollection.Find(ctx, bson.M{"featured": true, "approved": true, "isRejcted": false})
+		cursor, err := ProductCollection.Find(ctx, bson.M{"featured": true, "approved": true, "isRejected": false})
 
 		if err != nil {
 
