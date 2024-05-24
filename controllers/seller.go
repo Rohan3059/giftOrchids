@@ -393,83 +393,6 @@ func GetAllProductsForASellerHandler() gin.HandlerFunc {
 
 }
 
-func UpdateSellerBusinessDetails() gin.HandlerFunc {
-	return func(c *gin.Context) {
-
-		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		id, exist := c.Get("uid")
-		if !exist {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "You're not authorized to perform this action"})
-			return
-		}
-
-		sellerId, err := primitive.ObjectIDFromHex(id.(string))
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Seller ID"})
-			return
-		}
-
-		var seller models.Seller
-
-		findErr := SellerCollection.FindOne(ctx, bson.M{"_id": sellerId}).Decode(&seller)
-		if findErr != nil {
-			c.Header("content-type", "application/json")
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to find seller with this phone number"})
-			c.Abort()
-			return
-		}
-
-		Company_Name := c.PostForm("Company_name")
-		PAN := c.PostForm("pan")
-		PermanentAddress := c.PostForm("permanenetaddress")
-
-		BusinessType := c.PostForm("businesstype")
-		YearEstablished := c.PostForm("yearestablished")
-		CompanyOrigin := c.PostForm("companyorigin")
-		GSTINORCIN := c.PostForm("gstinorcin")
-		BusinessEntity := c.PostForm("businessentity")
-		NoOfEmployee := c.PostForm("noofemployee")
-
-		seller.Updated_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
-
-		seller.Company_Name = Company_Name
-		seller.CompanyDetail.PAN = PAN
-		seller.CompanyDetail.PermanentAddress = PermanentAddress
-		seller.CompanyDetail.BusinessType = BusinessType
-		seller.CompanyDetail.YearEstablished = YearEstablished
-		seller.CompanyDetail.CompanyOrigin = CompanyOrigin
-		seller.CompanyDetail.CIN = GSTINORCIN
-		seller.CompanyDetail.BusinessEntity = BusinessEntity
-		seller.CompanyDetail.NoOfEmployee = NoOfEmployee
-
-		validationErr := validate.Struct(seller)
-		if validationErr != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"Error": validationErr.Error()})
-			return
-		}
-
-		filter := primitive.M{
-			"_id": sellerId,
-		}
-		update := bson.M{"$set": bson.M{
-			"Company_name":  seller.Company_Name,
-			"companydetail": seller.CompanyDetail,
-		},
-		}
-
-		_, updateError := SellerCollection.UpdateOne(ctx, filter, update)
-
-		if updateError != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": updateError.Error()})
-			return
-		}
-
-		c.String(http.StatusOK, "Seller details updated successfully!")
-
-	}
-}
-
 // update owner details
 func UpdateOwnerDetails() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -629,7 +552,6 @@ func UpdateOwnerDetails() gin.HandlerFunc {
 		}
 
 		filter := bson.M{"_id": sellerId}
-		fmt.Println(update)
 
 		updateError := SellerCollection.FindOneAndUpdate(ctx, filter, bson.M{"$set": update}).Decode(&seller)
 		if updateError != nil {
@@ -644,6 +566,221 @@ func UpdateOwnerDetails() gin.HandlerFunc {
 		}
 
 		c.String(http.StatusOK, "Owner details updated successfully!")
+	}
+}
+
+func UpdateSellerBusinessDetails() gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		id, exist := c.Get("uid")
+		if !exist {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "You're not authorized to perform this action"})
+			return
+		}
+
+		sellerId, err := primitive.ObjectIDFromHex(id.(string))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Seller ID"})
+			return
+		}
+
+		var seller models.Seller
+
+		findErr := SellerCollection.FindOne(ctx, bson.M{"_id": sellerId}).Decode(&seller)
+		if findErr != nil {
+			c.Header("content-type", "application/json")
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to find seller with this phone number"})
+			c.Abort()
+			return
+		}
+
+		Company_Name := c.PostForm("Company_name")
+		PAN := c.PostForm("pan")
+		PermanentAddress := c.PostForm("permanenetaddress")
+
+		BusinessType := c.PostForm("businesstype")
+		YearEstablished := c.PostForm("yearestablished")
+		CompanyOrigin := c.PostForm("companyorigin")
+		GSTIN := c.PostForm("gstin")
+		CIN := c.PostForm("cin")
+		llpin := c.PostForm("llpin")
+		BusinessEntity := c.PostForm("businessentity")
+		NoOfEmployee := c.PostForm("noofemployee")
+
+		seller.Updated_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+
+		form, err := c.MultipartForm()
+		if err != nil {
+			log.Println("error while multipart")
+			c.String(http.StatusBadRequest, "get form err: %s", err.Error())
+			return
+		}
+		panFile := form.File["panFile"]
+		gstinFile := form.File["gstinFile"]
+		profile_picture := form.File["profile_picture"]
+
+		//create update
+
+		update := bson.M{}
+
+		if Company_Name != "" {
+			update["company_name"] = Company_Name
+		}
+
+		if PAN != "" {
+			update["companydetail.pan"] = PAN
+		}
+
+		if PermanentAddress != "" {
+			update["companydetail.permanenetaddress"] = PermanentAddress
+		}
+
+		if BusinessType != "" {
+			update["companydetail.businesstype"] = BusinessType
+		}
+
+		if YearEstablished != "" {
+			update["companydetail.yearestablished"] = YearEstablished
+		}
+
+		if CompanyOrigin != "" {
+			update["companydetail.companyorigin"] = CompanyOrigin
+		}
+
+		if GSTIN != "" {
+			update["companydetail.gstin"] = GSTIN
+		}
+
+		if CIN != "" {
+			update["companydetail.cin"] = CIN
+		}
+
+		if llpin != "" {
+			update["companydetail.llpin"] = llpin
+		}
+
+		if BusinessEntity != "" {
+			update["companydetail.businessentity"] = BusinessEntity
+		}
+
+		if NoOfEmployee != "" {
+			update["companydetail.noofemployee"] = NoOfEmployee
+		}
+
+		if len(panFile) > 0 {
+			panHeader, err := panFile[0].Open()
+			if err != nil {
+				c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening PAN file: %s", err.Error()))
+				return
+			}
+			panFileUrl, err := saveFile(panHeader, panFile[0])
+			if err != nil {
+				c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving PAN file: %s", err.Error()))
+				return
+			}
+			update["companydetail.panimage"] = panFileUrl
+		}
+
+		if len(gstinFile) > 0 {
+			gstinHeader, err := gstinFile[0].Open()
+			if err != nil {
+				c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening Aadhar file: %s", err.Error()))
+				return
+			}
+			gstinFileUrl, err := saveFile(gstinHeader, gstinFile[0])
+			if err != nil {
+				c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving GSTIN file: %s", err.Error()))
+				return
+			}
+
+			update["companydetail.gstindoc"] = gstinFileUrl
+		}
+
+		if len(profile_picture) > 0 {
+			profile_pictureHeader, err := profile_picture[0].Open()
+			if err != nil {
+				c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening Aadhar file: %s", err.Error()))
+				return
+			}
+			profile_pictureFileUrl, err := saveFile(profile_pictureHeader, profile_picture[0])
+			if err != nil {
+				c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving Aadhar file: %s", err.Error()))
+				return
+			}
+
+			update["companydetail.profilepicture"] = profile_pictureFileUrl
+		}
+
+		if llpin != "" {
+			LLPINFile := form.File["llpinFile"]
+
+			if len(LLPINFile) > 0 {
+				LLPINHeader, err := LLPINFile[0].Open()
+				if err != nil {
+					c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening LLPIN file: %s", err.Error()))
+					return
+				}
+				LLPINFileUrl, err := saveFile(LLPINHeader, LLPINFile[0])
+				if err != nil {
+					c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving PAN file: %s", err.Error()))
+					return
+				}
+
+				update["companydetail.llpindoc"] = LLPINFileUrl
+
+				defer LLPINHeader.Close()
+			}
+
+		}
+
+		if CIN != "" {
+			CINFile := form.File["cinFile"]
+
+			if len(CINFile) > 0 {
+				CINHeader, err := CINFile[0].Open()
+				if err != nil {
+					c.String(http.StatusInternalServerError, fmt.Sprintf("Error opening CIN file: %s", err.Error()))
+					return
+				}
+				CINFileUrl, err := saveFile(CINHeader, CINFile[0])
+				if err != nil {
+					c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving CIN file: %s", err.Error()))
+					return
+				}
+
+				update["companydetail.cindoc"] = CINFileUrl
+
+				defer CINHeader.Close()
+			}
+		}
+
+		if len(update) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "No valid fields to update"})
+			return
+		}
+
+		updated_at, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+
+		update["updated_at"] = updated_at
+
+		filter := bson.M{"_id": sellerId}
+
+		updateError := SellerCollection.FindOneAndUpdate(ctx, filter, bson.M{"$set": update}).Decode(&seller)
+		if updateError != nil {
+			if errors.Is(updateError, mongo.ErrNoDocuments) {
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "No seller found"})
+				return
+			}
+
+			log.Println(updateError)
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to save business details, try again"})
+			return
+		}
+
+		c.String(http.StatusOK, "Seller details updated successfully!")
+
 	}
 }
 
