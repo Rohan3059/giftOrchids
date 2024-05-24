@@ -1030,3 +1030,111 @@ func checkSeller(ctx context.Context, c *gin.Context) bool {
 	}
 	return false
 }
+
+//handler to make a product featured
+
+func MakeProductFeatured() gin.HandlerFunc {
+
+	return func(c *gin.Context) {
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+		defer cancel()
+
+		if !checkAdmin(ctx, c) {
+
+			c.JSON(http.StatusForbidden, gin.H{"Error": "forbidden"})
+			return
+		}
+
+		id := c.Param("id")
+
+		objID, _ := primitive.ObjectIDFromHex(id)
+
+		var product models.Product
+
+		err := ProductCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&product)
+
+		if err != nil {
+
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Unable to update product "})
+
+			return
+
+		}
+
+		update := bson.M{"$set": bson.M{"featured": true}}
+
+		_, err = ProductCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+
+		if err != nil {
+
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Unable to update product"})
+
+			return
+
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Product updated successfully"})
+
+	}
+}
+
+//get featured products
+
+func GetFeaturedProducts() gin.HandlerFunc {
+
+	return func(c *gin.Context) {
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+		defer cancel()
+
+		cursor, err := ProductCollection.Find(ctx, bson.M{"featured": true, "approved": true, "isRejcted": false})
+
+		if err != nil {
+
+			c.IndentedJSON(http.StatusInternalServerError, "Something went wrong while fetching the data")
+
+			return
+
+		}
+
+		var featuredProducts []models.Product
+
+		err = cursor.All(ctx, &featuredProducts)
+
+		if err != nil {
+
+			c.IndentedJSON(http.StatusInternalServerError, "Something went wrong while fetching the data")
+
+			return
+
+		}
+		//append prsign url for each imabge of each product
+
+		for i, product := range featuredProducts {
+
+			for j, image := range product.Image {
+
+				url, err := getPresignURL(image)
+
+				if err != nil {
+
+					log.Println("Error generating pre-signed URL for image:", err)
+
+					continue
+
+				}
+
+				featuredProducts[i].Image[j] = url
+
+			}
+
+		}
+
+		c.JSON(http.StatusOK, featuredProducts)
+
+	}
+
+}

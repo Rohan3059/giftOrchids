@@ -28,11 +28,11 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/post-requirement", controllers.CreateRequirementMessage())
 	incomingRoutes.GET("/get-productReference", controllers.FetchProductsAndReferencesHandler())
 	incomingRoutes.GET("/product-reference", controllers.GetProductReferenceHandler())
+	incomingRoutes.GET("/featured-products", controllers.GetFeaturedProducts())
 
 	incomingRoutes.GET("/all-attributesType", controllers.GetAllAttributes())
 	incomingRoutes.GET("/get-attributeType/:id", controllers.GetAttributeByID())
 
-	incomingRoutes.GET("/product-reviews", controllers.GetProductReviews())
 	incomingRoutes.GET("/approved-product-reviews", controllers.GetProductApprovedReviews())
 	incomingRoutes.POST("/create-ticket", controllers.CreateTicket())
 	incomingRoutes.GET("/get-feeds", controllers.GetAllFeedsHandler())
@@ -90,6 +90,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.DELETE("/admin/delete-product", controllers.DeleteProduct())
 	incomingRoutes.POST("/admin/approve-review", controllers.ApproveReview())
 	incomingRoutes.GET("/admin/all-reviews", controllers.GetReviews())
+	incomingRoutes.GET("/admin/product-reviews", controllers.GetProductReviews())
 	incomingRoutes.POST("/admin/add-attributeType", controllers.AddAttributeType())
 	incomingRoutes.PUT("/admin/update-attribute/:id", controllers.UpdateAttributeType())
 	incomingRoutes.GET("/admin/getTickets", controllers.GetTickets())
@@ -103,6 +104,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.DELETE("/admin/delete-feed", controllers.DeleteFeed())
 	incomingRoutes.POST("/admin/update-feed", controllers.UpdateFeed())
 	incomingRoutes.GET("/admin/products", controllers.GetAllProducts())
+	incomingRoutes.POST("/admin/updat/product/featured/:id", controllers.MakeProductFeatured())
 
 	incomingRoutes.GET("/admin/dashboard/analytics", controllers.GetAnalytics())
 
