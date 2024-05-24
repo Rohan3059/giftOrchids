@@ -626,7 +626,7 @@ func UpdateSellerBusinessDetails() gin.HandlerFunc {
 		update := bson.M{}
 
 		if Company_Name != "" {
-			update["company_name"] = Company_Name
+			update["Company_name"] = Company_Name
 		}
 
 		if PAN != "" {
