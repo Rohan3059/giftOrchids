@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1049,6 +1050,20 @@ func MakeProductFeatured() gin.HandlerFunc {
 
 		id := c.Param("id")
 
+		isFeatured := c.Query("featured")
+
+		if isFeatured != "true" && isFeatured != "false" {
+
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid request"})
+
+			return
+
+		}
+
+		//parse bool
+
+		isFeaturedBool, _ := strconv.ParseBool(isFeatured)
+
 		objID, _ := primitive.ObjectIDFromHex(id)
 
 		var product models.Product
@@ -1063,7 +1078,7 @@ func MakeProductFeatured() gin.HandlerFunc {
 
 		}
 
-		update := bson.M{"$set": bson.M{"featured": true}}
+		update := bson.M{"$set": bson.M{"featured": isFeaturedBool}}
 
 		_, err = ProductCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
 
