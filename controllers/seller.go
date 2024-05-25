@@ -634,7 +634,7 @@ func UpdateSellerBusinessDetails() gin.HandlerFunc {
 		}
 
 		if PermanentAddress != "" {
-			update["companydetail.permanenetaddress"] = PermanentAddress
+			update["companydetail.permanentaddress"] = PermanentAddress
 		}
 
 		if BusinessType != "" {
@@ -764,6 +764,7 @@ func UpdateSellerBusinessDetails() gin.HandlerFunc {
 		updated_at, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 
 		update["updated_at"] = updated_at
+		update["approved"] = false
 
 		filter := bson.M{"_id": sellerId}
 
@@ -1077,15 +1078,23 @@ func DownloadAllFiles() gin.HandlerFunc {
 
 func LoadSeller() gin.HandlerFunc {
 	return func(c *gin.Context) {
+
+		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if !checkSeller(ctx, c) {
+			c.JSON(http.StatusForbidden, gin.H{"Error": "forbidden"})
+		}
+
 		sellerID, exists := c.Get("uid")
 		if !exists {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Seller ID not found in context"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Seller ID not found in context"})
 			return
 		}
 
 		sellerObjID, err := primitive.ObjectIDFromHex(sellerID.(string))
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Seller ID"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid Seller ID"})
 			return
 		}
 
@@ -1093,7 +1102,7 @@ func LoadSeller() gin.HandlerFunc {
 		var seller models.Seller // Assuming Seller struct is defined in models package
 		err = SellerCollection.FindOne(context.Background(), bson.M{"_id": sellerObjID}).Decode(&seller)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
+			c.JSON(http.StatusNotFound, gin.H{"Error": "Seller not found"})
 			return
 		}
 

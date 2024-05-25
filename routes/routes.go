@@ -90,6 +90,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.DELETE("/admin/delete-product", controllers.DeleteProduct())
 	incomingRoutes.POST("/admin/approve-review", controllers.ApproveReview())
 	incomingRoutes.GET("/admin/all-reviews", controllers.GetReviews())
+	incomingRoutes.GET("/admin/review/:id", controllers.GetReview())
 	incomingRoutes.GET("/admin/product-reviews", controllers.GetProductReviews())
 	incomingRoutes.POST("/admin/add-attributeType", controllers.AddAttributeType())
 	incomingRoutes.PUT("/admin/update-attribute/:id", controllers.UpdateAttributeType())

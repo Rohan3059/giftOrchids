@@ -780,6 +780,13 @@ func LoginValidatePasswordOTP() gin.HandlerFunc {
 
 			return
 		}
+
+		if founduser.User_type != utils.Seller {
+
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "This is not a seller account"})
+			return
+		}
+
 		token, refreshToken, _ := generate.TokenGenerator(founduser.Email, founduser.MobileNo, founduser.Company_Name, founduser.Seller_ID)
 		generate.UpdateAllTokens(token, refreshToken, founduser.Seller_ID)
 		c.JSON(http.StatusAccepted, token)

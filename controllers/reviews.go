@@ -506,3 +506,36 @@ func GetReviews() gin.HandlerFunc {
 
 	}
 }
+
+func GetReview() gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		id := c.Param("id")
+
+		objID, _ := primitive.ObjectIDFromHex(id)
+
+		var reviews models.Reviews
+
+		err := ReviewsCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&reviews)
+
+		if err != nil {
+			c.IndentedJSON(http.StatusInternalServerError, "Something went wrong while fetching the review")
+			return
+		}
+
+		//get productid and find product details
+		productid := reviews.ProductId
+
+		prodcut := getProductDetails(ctx, productid.Hex())
+
+		userid := reviews.UserId.Hex()
+
+		user := getUserDetails(ctx, userid)
+
+		c.IndentedJSON(http.StatusOK, gin.H{"review": reviews, "product": prodcut, "user": user})
+
+	}
+}
