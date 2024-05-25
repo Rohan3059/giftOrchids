@@ -88,7 +88,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.GET("/admin/approve-product", controllers.ApproveProduct())
 	incomingRoutes.PUT("/admin/reject-product/:id", controllers.RejectProduct())
 	incomingRoutes.DELETE("/admin/delete-product", controllers.DeleteProduct())
-	incomingRoutes.POST("/admin/approve-review", controllers.ApproveReview())
+	incomingRoutes.POST("/admin/approve-review/:id", controllers.ApproveReview())
 	incomingRoutes.GET("/admin/all-reviews", controllers.GetReviews())
 	incomingRoutes.GET("/admin/review/:id", controllers.GetReview())
 	incomingRoutes.GET("/admin/product-reviews", controllers.GetProductReviews())
