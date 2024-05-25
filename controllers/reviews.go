@@ -225,26 +225,29 @@ func ApproveReview() gin.HandlerFunc {
 		//parse status bool
 		statusBool, _ := strconv.ParseBool(status)
 
-		var review models.Reviews
-		if err := c.ShouldBindJSON(&review); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
+		id := c.Param("id")
 
-		if review.Id.Hex() == "" {
+		if id == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "Review ID is required"})
 			return
 		}
 
-		filter := bson.M{"_id": review.Id}
-		update := bson.M{"$set": bson.M{"approved": statusBool}}
-		_, err := ReviewsCollection.UpdateOne(ctx, filter, update)
+		oid, err := primitive.ObjectIDFromHex(id)
+
 		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid review ID"})
+			return
+		}
+
+		filter := bson.M{"_id": oid}
+		update := bson.M{"$set": bson.M{"approved": statusBool}}
+		_, updteErr := ReviewsCollection.UpdateOne(ctx, filter, update)
+		if updteErr != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to approve review"})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "Review approved successfully"})
+		c.JSON(http.StatusOK, gin.H{"message": "Review status updated successfully"})
 
 	}
 }
