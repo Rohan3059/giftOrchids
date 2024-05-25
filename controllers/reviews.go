@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -219,6 +220,11 @@ func ApproveReview() gin.HandlerFunc {
 
 		}
 
+		status := c.Query("status")
+
+		//parse status bool
+		statusBool, _ := strconv.ParseBool(status)
+
 		var review models.Reviews
 		if err := c.ShouldBindJSON(&review); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -231,7 +237,7 @@ func ApproveReview() gin.HandlerFunc {
 		}
 
 		filter := bson.M{"_id": review.Id}
-		update := bson.M{"$set": bson.M{"approved": true}}
+		update := bson.M{"$set": bson.M{"approved": statusBool}}
 		_, err := ReviewsCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to approve review"})
