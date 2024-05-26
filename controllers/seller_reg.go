@@ -393,6 +393,11 @@ func SellerOwnerDetailsUpdate() gin.HandlerFunc {
 		panDoc := form.File["panDoc"]
 		passportDoc := form.File["passportDoc"]
 
+		if len(aadharDoc) == 0 || len(panDoc) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Please upload Aadhar and PAN"})
+			return
+		}
+
 		aadharDocFile, err := aadharDoc[0].Open()
 		if err != nil {
 			log.Println("error while opening file")
@@ -422,7 +427,7 @@ func SellerOwnerDetailsUpdate() gin.HandlerFunc {
 			return
 		}
 
-		if passportDoc != nil {
+		if passportDoc != nil && len(passportDoc) > 0 {
 			passportDocFile, err := passportDoc[0].Open()
 			if err != nil {
 				log.Println("error while opening file")
