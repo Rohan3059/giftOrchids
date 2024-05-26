@@ -89,13 +89,24 @@ func AddReviewHandler() gin.HandlerFunc {
 			return
 		}
 
-		// Update product with new review ID
-		// Append new review ID to existing array of review IDs in Product collection
-		update := bson.M{"$push": bson.M{"reviews": review.Id}}
-		_, err = ProductCollection.UpdateOne(ctx, bson.M{"_id": review.ProductId}, update)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product with review ID"})
-			return
+		if product.Reviews != nil {
+
+			update := bson.M{"$push": bson.M{"reviews": review.Id}}
+			_, err = ProductCollection.UpdateOne(ctx, bson.M{"_id": review.ProductId}, update)
+			if err != nil {
+				fmt.Println(err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product with review ID"})
+				return
+			}
+		} else {
+
+			update := bson.M{"$set": bson.M{"reviews": []primitive.ObjectID{review.Id}}}
+			_, err = ProductCollection.UpdateOne(ctx, bson.M{"_id": review.ProductId}, update)
+			if err != nil {
+				fmt.Println(err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product with review ID"})
+				return
+			}
 		}
 
 		// Return success response
