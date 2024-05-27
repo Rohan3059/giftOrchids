@@ -40,8 +40,10 @@ var uploader *s3manager.Uploader
 
 func init() {
 	// Load environment variables from .env file
-	if err := godotenv.Load(); err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
+	if os.Getenv("APP_ENV") != "production" {
+		if err := godotenv.Load(); err != nil {
+			log.Fatalf("Error loading .env file: %v", err)
+		}
 	}
 
 	// Read AWS credentials from environment variables
@@ -133,10 +135,6 @@ func DownloadPDFFromS3(s3Url string) ([]byte, error) {
 
 func getPresignURL(s3Url string) (string, error) {
 	// Create an S3 service client using the provided session
-
-	if err := godotenv.Load(); err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
-	}
 
 	// Read AWS credentials from environment variables
 	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
@@ -239,13 +237,6 @@ func ProductViewerAdmin() gin.HandlerFunc {
 		var product models.Product
 
 		defer cancel()
-
-		err := godotenv.Load()
-		if err != nil {
-			log.Fatal(err)
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
-			return
-		}
 
 		product.Product_ID = primitive.NewObjectID()
 		product.Product_Name = c.PostForm("product_name")
@@ -453,13 +444,6 @@ func UpdateProduct() gin.HandlerFunc {
 		err := ProductCollection.FindOne(ctx, filter).Decode(&product)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"Error": "Product not found"})
-			return
-		}
-
-		enverr := godotenv.Load()
-		if enverr != nil {
-			log.Fatal(err)
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
 			return
 		}
 

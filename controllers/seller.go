@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"github.com/kravi0/BizGrowth-backend/database"
 	"github.com/kravi0/BizGrowth-backend/models"
 	"github.com/kravi0/BizGrowth-backend/utils"
@@ -1440,13 +1439,6 @@ func SellerUpdateProduct() gin.HandlerFunc {
 
 		if !isSeller {
 			c.JSON(http.StatusForbidden, gin.H{"Error": "You are not authorized to perform this action"})
-			return
-		}
-
-		enverr := godotenv.Load()
-		if enverr != nil {
-			log.Fatal(err)
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
 			return
 		}
 
