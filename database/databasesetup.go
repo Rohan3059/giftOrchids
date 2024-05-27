@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
+	"net/url"
+	"os"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -12,11 +13,15 @@ import (
 )
 
 func DBSet() *mongo.Client {
-		username := strings.TrimSpace("happyclarke")
-    password := strings.TrimSpace("Ravi2580")
 
-    uri := "mongodb+srv://" + username + ":" + password + "@my-cluster.p7z1vax.mongodb.net/?retryWrites=true&w=majority&appName=my-cluster"
+	/*if err := godotenv.Load(); err != nil {
+		log.Fatalf("Error loading .env file: %v", err)
+	}*/
 
+	username := url.QueryEscape(os.Getenv("DB_USER"))
+	password := url.QueryEscape(os.Getenv("DB_PASSWORD"))
+
+	uri := "mongodb+srv://" + username + ":" + password + "@grwothbiz.srweepy.mongodb.net/?retryWrites=true&w=majority&appName=GrwothBiz"
 
 	client, err := mongo.NewClient(options.Client().ApplyURI(uri))
 
@@ -46,7 +51,7 @@ func DBSet() *mongo.Client {
 var Client *mongo.Client = DBSet()
 
 func UserData(client *mongo.Client, collectionName string) *mongo.Collection {
-	
+
 	var collection = client.Database("growthbiz").Collection(collectionName)
 	return collection
 }
