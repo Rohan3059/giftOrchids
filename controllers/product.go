@@ -21,7 +21,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"github.com/kravi0/BizGrowth-backend/database"
 	"github.com/kravi0/BizGrowth-backend/models"
 	"github.com/kravi0/BizGrowth-backend/utils"
@@ -39,17 +38,17 @@ var FeedsCollection *mongo.Collection = database.ProductData(database.Client, "N
 var uploader *s3manager.Uploader
 
 func init() {
-	// Load environment variables from .env file
-	if os.Getenv("APP_ENV") != "production" {
-		if err := godotenv.Load(); err != nil {
-			log.Fatalf("Error loading .env file: %v", err)
-		}
-	}
+
+	/*if err := godotenv.Load(); err != nil {
+		log.Fatalf("Error loading .env file: %v", err)
+	}*/
 
 	// Read AWS credentials from environment variables
 	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
 	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
 	region := os.Getenv("AWS_REGION")
+
+	//load these from aws secret manager
 
 	// Create a new AWS session with the provided credentials and region
 	awsSession, err := session.NewSessionWithOptions(session.Options{
@@ -75,6 +74,7 @@ func saveFile(fileReader io.Reader, fileHeader *multipart.FileHeader) (string, e
 	// Upload the file to S3 using the fileReader
 
 	bucketName := os.Getenv("AWS_BUCKET_NAME")
+
 	mtype, error := mimetype.DetectReader(fileReader)
 
 	if error != nil {
@@ -136,7 +136,6 @@ func DownloadPDFFromS3(s3Url string) ([]byte, error) {
 func getPresignURL(s3Url string) (string, error) {
 	// Create an S3 service client using the provided session
 
-	// Read AWS credentials from environment variables
 	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
 	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
 	region := os.Getenv("AWS_REGION")
