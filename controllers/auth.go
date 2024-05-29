@@ -302,11 +302,11 @@ func RegisterAdmin() gin.HandlerFunc {
 			{"mobile": input.Mobile},
 		}})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
 			return
 		}
 		if count > 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Email or mobile number already registered"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Email or mobile number already registered"})
 			return
 		}
 
