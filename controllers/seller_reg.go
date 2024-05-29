@@ -197,7 +197,7 @@ func SellerEmailUpdate() gin.HandlerFunc {
 
 func SellerCommpanyDetailsUpdate() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		var ctx, cancel = context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 		var seller models.Seller
 		mobileno := c.PostForm("mobileno")
@@ -361,7 +361,7 @@ func SellerCommpanyDetailsUpdate() gin.HandlerFunc {
 
 func SellerOwnerDetailsUpdate() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		var ctx, cancel = context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 		var seller models.Seller
 
@@ -483,7 +483,7 @@ func SellerOwnerDetailsUpdate() gin.HandlerFunc {
 
 func SellerLicenseUpdate() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		var ctx, cancel = context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 
 		var seller models.Seller
