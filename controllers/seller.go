@@ -396,7 +396,7 @@ func GetAllProductsForASellerHandler() gin.HandlerFunc {
 func UpdateOwnerDetails() gin.HandlerFunc {
 	return func(c *gin.Context) {
 
-		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		var ctx, cancel = context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 		id, exist := c.Get("uid")
 		if !exist {
@@ -571,7 +571,7 @@ func UpdateOwnerDetails() gin.HandlerFunc {
 func UpdateSellerBusinessDetails() gin.HandlerFunc {
 	return func(c *gin.Context) {
 
-		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		var ctx, cancel = context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 		id, exist := c.Get("uid")
 		if !exist {
