@@ -338,7 +338,7 @@ func RegisterAdmin() gin.HandlerFunc {
 		// Insert the admin into the database
 		_, err = SellerCollection.InsertOne(ctx, admin)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
 			return
 		}
 

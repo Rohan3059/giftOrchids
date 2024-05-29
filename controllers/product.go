@@ -952,6 +952,25 @@ func SearchProduct() gin.HandlerFunc {
 			return
 		}
 
+		//iterate through each product and add presignurl
+
+		for i := range results {
+
+			for j := range results[i].Image {
+
+				url, err := getPresignURL(results[i].Image[j])
+
+				if err != nil {
+
+					log.Println("Error generating pre-signed URL for image:", err)
+				}
+
+				results[i].Image[j] = url
+
+			}
+
+		}
+
 		c.JSON(http.StatusOK, results)
 
 	}

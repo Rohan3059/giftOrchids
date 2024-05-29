@@ -62,7 +62,7 @@ func GetSeller() gin.HandlerFunc {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid seller ID"})
 				return
 			}
-			filter := primitive.M{"_id": sellerObjID}
+			filter := primitive.M{"_id": sellerObjID, "user_type": utils.Seller}
 			if err := SellerCollection.FindOne(ctx, filter).Decode(&sellerDetail); err != nil {
 				c.JSON(http.StatusNotFound, gin.H{"error": "Seller not found"})
 				return
@@ -138,7 +138,7 @@ func GetSeller() gin.HandlerFunc {
 
 		// Fetch details of all sellers
 		var sellerDetails []models.Seller
-		cur, err := SellerCollection.Find(ctx, bson.M{})
+		cur, err := SellerCollection.Find(ctx, bson.M{"user_type": utils.Seller})
 		if err != nil {
 			log.Println(err)
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to find sellers"})
