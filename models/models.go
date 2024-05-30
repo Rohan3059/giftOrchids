@@ -101,7 +101,7 @@ type Categories struct {
 type Seller struct {
 	ID              primitive.ObjectID `bson:"_id"`
 	Seller_ID       string             `bson:"seller_id"`
-	Company_Name    string             `json:"Company_name"`
+	Company_Name    string             `json:"company_name" bson:"company_name"`
 	OwnerDetail     OwnerDetails       `json:"owner_details"`
 	CompanyDetail   CompanyDetail      `json:"companydetail" validate:"required"`
 	MobileNo        string             `json:"mobileno"`
