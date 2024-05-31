@@ -1267,6 +1267,10 @@ func DeleteImageFromProduct() gin.HandlerFunc {
 		var product models.Product
 
 		finderr := ProductCollection.FindOne(ctx, bson.M{"_id": productID}).Decode(&product)
+		if finderr != nil {
+			c.JSON(http.StatusNotFound, gin.H{"Error": "product not found"})
+			return
+		}
 
 		if checkSeller(ctx, c) {
 			uid, exist := c.Get("uid")
@@ -1290,11 +1294,6 @@ func DeleteImageFromProduct() gin.HandlerFunc {
 				return
 			}
 
-		}
-
-		if finderr != nil {
-			c.JSON(http.StatusNotFound, gin.H{"Error": "product not found"})
-			return
 		}
 
 		product.Image = append(product.Image[:index], product.Image[index+1:]...)
