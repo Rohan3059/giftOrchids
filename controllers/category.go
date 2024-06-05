@@ -24,6 +24,16 @@ type CategoryWithChildren struct {
 	ChildCategories []models.Categories
 }
 
+type CategoryListWithChildren struct {
+	Category        models.Categories
+	ChildCategories []CategoryList
+}
+
+type CategoryList struct {
+	Category_ID primitive.ObjectID `bson:"_id" json:"id"`
+	Category    string             `json:"category" bson:"category"`
+}
+
 func AddCategory() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
@@ -118,6 +128,9 @@ func GetCategory() gin.HandlerFunc {
 					"as":           "parent_category_details",
 				},
 			},
+			{
+				"$sort": bson.M{"category": 1},
+			},
 		}
 
 		// Execute aggregation pipeline
@@ -149,6 +162,68 @@ func GetCategory() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, results)
+	}
+}
+
+func GetCategoryTree() gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Aggregation pipeline to perform $lookup with parent_category collection
+		pipeline := []bson.M{
+			{
+				"$match": bson.M{"isApproved": true},
+			},
+			{
+				"$lookup": bson.M{
+					"from":         "Categories",
+					"localField":   "parent_category",
+					"foreignField": "_id",
+					"as":           "parent_category_details",
+				},
+			},
+			{
+				"$sort": bson.M{"category": 1},
+			},
+		}
+
+		// Execute aggregation pipeline
+		cursor, err := CategoriesCollection.Aggregate(ctx, pipeline)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, "Something went wrong. Please try again.")
+			return
+		}
+		defer cursor.Close(ctx)
+
+		var results []models.Categories
+
+		// Decode the results into category slice
+		if err := cursor.All(ctx, &results); err != nil {
+			c.JSON(http.StatusInternalServerError, "Something went wrong while fetching data. Please try again.")
+			return
+		}
+
+		var category_list []CategoryListWithChildren
+
+		for i := range results {
+			var category CategoryListWithChildren
+			child_category, err := GetChildCategoryWithId(results[i].Category_ID)
+			if err != nil {
+				fmt.Println(err)
+
+				continue
+
+			}
+			category.Category = results[i]
+			category.ChildCategories = child_category
+
+			category_list = append(category_list, category)
+
+		}
+
+		c.JSON(http.StatusOK, category_list)
 	}
 }
 
@@ -265,7 +340,7 @@ func GetCategoryWithId(categoryID primitive.ObjectID) ([]models.Categories, erro
 				"connectFromField": "parent_category",
 				"connectToField":   "_id",
 				"as":               "child_categories",
-				"maxDepth":         10, // Set a maximum depth to prevent infinite recursion
+				"maxDepth":         10,
 			},
 		},
 	}
@@ -296,6 +371,55 @@ func GetCategoryWithId(categoryID primitive.ObjectID) ([]models.Categories, erro
 		}
 
 		categories = append(categories, category)
+	}
+
+	// Check if any categories found
+	if len(categories) == 0 {
+		return nil, errors.New("no categories found")
+	}
+
+	return categories, nil
+}
+
+func GetChildCategoryWithId(categoryID primitive.ObjectID) ([]CategoryList, error) {
+	var ctx = context.Background()
+
+	// Aggregation pipeline to find category details and its child categories recursively
+	pipeline := []bson.M{
+		{
+			"$match": bson.M{"parent_category": categoryID},
+		},
+		{
+			"$graphLookup": bson.M{
+				"from":             "Categories",
+				"startWith":        "$_id",
+				"connectFromField": "parent_category",
+				"connectToField":   "_id",
+				"as":               "child_categories",
+				"maxDepth":         10,
+			},
+		},
+	}
+
+	// Execute aggregation pipeline
+	cursor, err := CategoriesCollection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	// Decode the results into a slice of categories
+	var categories []CategoryList
+	for cursor.Next(ctx) {
+		var category models.Categories
+		if err := cursor.Decode(&category); err != nil {
+			return nil, err
+		}
+
+		categories = append(categories, CategoryList{
+			Category_ID: category.Category_ID,
+			Category:    category.Category,
+		})
 	}
 
 	// Check if any categories found

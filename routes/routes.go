@@ -20,6 +20,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.GET("/search-suggestions", controllers.SuggestionsHandler())
 	incomingRoutes.GET("/search-product", controllers.SearchProduct())
 	incomingRoutes.GET("/getcategory", controllers.GetCategory())
+	incomingRoutes.GET("/categories", controllers.GetCategoryTree())
 	incomingRoutes.GET("/category", controllers.GetSingleCategory())
 	incomingRoutes.PUT("/updatecategory", controllers.EditCategory())
 	incomingRoutes.GET("/getproduct", controllers.GetProduct())
