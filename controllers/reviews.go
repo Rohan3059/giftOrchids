@@ -21,35 +21,35 @@ func AddReviewHandler() gin.HandlerFunc {
 
 		var review models.Reviews
 		if err := c.ShouldBindJSON(&review); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
 			return
 		}
 
 		userId, exist := c.Get("uid")
 		if !exist {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "User ID not found"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "User ID not found"})
 			return
 		}
 
 		oid, err := primitive.ObjectIDFromHex(userId.(string))
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid user ID"})
 			return
 		}
 		review.UserId = oid
 		//not null userId
 		if review.UserId.Hex() == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "You're not logged in"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not logged in"})
 			return
 		}
 
 		if review.ReviewsDetails.ReviewRating > 5 || review.ReviewsDetails.ReviewRating < 1 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Rating must be between 1 and 5"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Rating must be between 1 and 5"})
 			return
 		}
 
 		if review.ReviewsDetails.ReviewText == "" || review.ReviewsDetails.ReviewTitle == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Review text and title are required"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Review text and title are required"})
 			return
 		}
 
@@ -57,13 +57,13 @@ func AddReviewHandler() gin.HandlerFunc {
 		var product models.Product
 		productObjID, err := primitive.ObjectIDFromHex(review.ProductId.Hex())
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid product ID"})
 			return
 		}
 		filter := bson.M{"_id": productObjID}
 		err = ProductCollection.FindOne(ctx, filter).Decode(&product)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+			c.JSON(http.StatusNotFound, gin.H{"Error": "Product not found"})
 			return
 		}
 
@@ -71,11 +71,11 @@ func AddReviewHandler() gin.HandlerFunc {
 		filter = bson.M{"product_id": productObjID, "user_id": review.UserId}
 		count, err := ReviewsCollection.CountDocuments(ctx, filter)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check if user has already reviewed the product"})
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to check if user has already reviewed the product"})
 			return
 		}
 		if count > 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "You have already reviewed this product"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "You have already reviewed this product"})
 			return
 		}
 
@@ -85,7 +85,7 @@ func AddReviewHandler() gin.HandlerFunc {
 
 		_, errs := ReviewsCollection.InsertOne(ctx, review)
 		if errs != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add review"})
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to add review"})
 			return
 		}
 
@@ -95,7 +95,7 @@ func AddReviewHandler() gin.HandlerFunc {
 			_, err = ProductCollection.UpdateOne(ctx, bson.M{"_id": review.ProductId}, update)
 			if err != nil {
 				fmt.Println(err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product with review ID"})
+				c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to update product with review ID"})
 				return
 			}
 		} else {
@@ -104,7 +104,7 @@ func AddReviewHandler() gin.HandlerFunc {
 			_, err = ProductCollection.UpdateOne(ctx, bson.M{"_id": review.ProductId}, update)
 			if err != nil {
 				fmt.Println(err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product with review ID"})
+				c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to update product with review ID"})
 				return
 			}
 		}
@@ -122,7 +122,7 @@ func AddReviewByAdmin() gin.HandlerFunc {
 
 		var review models.Reviews
 		if err := c.ShouldBindJSON(&review); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
 			return
 		}
 
@@ -141,7 +141,7 @@ func AddReviewByAdmin() gin.HandlerFunc {
 
 		oid, err := primitive.ObjectIDFromHex(userId)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid user ID"})
 			return
 		}
 		review.UserId = oid
@@ -176,11 +176,11 @@ func AddReviewByAdmin() gin.HandlerFunc {
 		filter := bson.M{"product_id": product.Product_ID, "user_id": review.UserId}
 		count, err := ReviewsCollection.CountDocuments(ctx, filter)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check if user has already reviewed the product"})
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to check if user has already reviewed the product"})
 			return
 		}
 		if count > 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "User have already reviewed this product"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "User have already reviewed this product"})
 			return
 		}
 
@@ -190,7 +190,7 @@ func AddReviewByAdmin() gin.HandlerFunc {
 
 		_, errs := ReviewsCollection.InsertOne(ctx, review)
 		if errs != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add review"})
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to add review"})
 			return
 		}
 
@@ -200,7 +200,7 @@ func AddReviewByAdmin() gin.HandlerFunc {
 			_, err = ProductCollection.UpdateOne(ctx, bson.M{"_id": review.ProductId}, update)
 			if err != nil {
 				fmt.Println(err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product with review ID"})
+				c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to update product with review ID"})
 				return
 			}
 		} else {
@@ -209,7 +209,7 @@ func AddReviewByAdmin() gin.HandlerFunc {
 			_, err = ProductCollection.UpdateOne(ctx, productfilter, update)
 			if err != nil {
 				fmt.Println(err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product with review ID"})
+				c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to update product with review ID"})
 				return
 			}
 		}
@@ -277,13 +277,13 @@ func GetProductApprovedReviews() gin.HandlerFunc {
 		var product models.Product
 		productObjID, err := primitive.ObjectIDFromHex(productId)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid product ID"})
 			return
 		}
 		filter := bson.M{"_id": productObjID}
 		err = ProductCollection.FindOne(ctx, filter).Decode(&product)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+			c.JSON(http.StatusNotFound, gin.H{"Error": "Product not found"})
 			return
 		}
 
@@ -316,7 +316,7 @@ func GetProductApprovedReviews() gin.HandlerFunc {
 
 					"user": bson.M{
 						"_id":      "$user._id",
-						"name":     "$user.username",
+						"name":     "$user.user_name",
 						"mobileno": "$user.mobileno",
 					},
 				},
@@ -388,13 +388,13 @@ func GetProductReviews() gin.HandlerFunc {
 		var product models.Product
 		productObjID, err := primitive.ObjectIDFromHex(productId)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid product ID"})
 			return
 		}
 		filter := bson.M{"_id": productObjID}
 		err = ProductCollection.FindOne(ctx, filter).Decode(&product)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+			c.JSON(http.StatusNotFound, gin.H{"Error": "Product not found"})
 			return
 		}
 
