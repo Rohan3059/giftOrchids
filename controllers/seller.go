@@ -524,7 +524,7 @@ func UpdateOwnerDetails() gin.HandlerFunc {
 
 		if passportNo != "" {
 			update["ownerdetail.passportNo"] = passportNo
-			update["ownerdetail.havepassport"] = true
+			update["ownerdetail.havePassport"] = true
 		}
 
 		if aadharDocUrl != "" {

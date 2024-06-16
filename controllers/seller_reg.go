@@ -291,7 +291,7 @@ func SellerCommpanyDetailsUpdate() gin.HandlerFunc {
 				c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving PAN file: %s", err.Error()))
 				return
 			}
-			seller.CompanyDetail.LLPIN = LLPINFileUrl
+			seller.CompanyDetail.LLPINDoc = LLPINFileUrl
 
 			defer LLPINHeader.Close()
 
@@ -309,7 +309,7 @@ func SellerCommpanyDetailsUpdate() gin.HandlerFunc {
 				c.String(http.StatusInternalServerError, fmt.Sprintf("Error saving CIN file: %s", err.Error()))
 				return
 			}
-			seller.CompanyDetail.CIN = CINFileUrl
+			seller.CompanyDetail.CINDoc = CINFileUrl
 			defer CINHeader.Close()
 		}
 

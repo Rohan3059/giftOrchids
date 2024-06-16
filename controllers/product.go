@@ -570,6 +570,9 @@ func SearchProductByQuery() gin.HandlerFunc {
 			filter = append(filter, primitive.M{"$regex": queryParam})
 		}
 		productCategory := c.Query("category")
+		//trim space
+		productCategory = strings.TrimSpace(productCategory)
+		fmt.Println(productCategory)
 		if productCategory != "" {
 			filter = append(filter, primitive.M{utils.Categories: productCategory})
 		}

@@ -426,12 +426,11 @@ func AddSellerMessage() gin.HandlerFunc {
 			return
 		}
 
-		//convert to seller id objectid
+		// Convert to seller id objectid
 		sellerId, _ := primitive.ObjectIDFromHex(uid.(string))
 
 		var foundSeller models.Seller
 		err := SellerCollection.FindOne(ctx, bson.M{"_id": sellerId}).Decode(&foundSeller)
-
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "Unable to find seller"})
 			return
@@ -440,7 +439,7 @@ func AddSellerMessage() gin.HandlerFunc {
 		name := foundSeller.Company_Name
 
 		if ticketId == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "ticket id is required"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Ticket id is required"})
 			return
 		}
 
@@ -461,18 +460,12 @@ func AddSellerMessage() gin.HandlerFunc {
 			return
 		}
 
-		updatedAt, err := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
-			return
-		}
+		updatedAt := time.Now()
 
 		var existingChatMessage models.SupportChatMessage
-
-		finderr := SupportChatMessage.FindOne(ctx, bson.M{"ticketId": ticketId}).Decode(&existingChatMessage)
+		finderr := SupportChatMessage.FindOne(ctx, bson.M{"SupportTicketId": ticketId}).Decode(&existingChatMessage)
 		if finderr != nil {
-
-			//create new
+			// Create new chat message document
 			chatMessage := models.SupportChatMessage{
 				SupportChatId:   primitive.NewObjectID(),
 				SupportTicketId: ticketId,
@@ -485,9 +478,9 @@ func AddSellerMessage() gin.HandlerFunc {
 				c.JSON(http.StatusBadRequest, gin.H{"Error": insertErr.Error()})
 				return
 			}
-			//update SupportTicker with id of SupportChatMessage
 
-			_, updateErr := SupportTickerCollection.UpdateOne(ctx, bson.M{"_id": ticketId}, bson.M{"$set": bson.M{
+			// Update SupportTicket with id of SupportChatMessage
+			_, updateErr := SupportTickerCollection.UpdateOne(ctx, bson.M{"ticketid": ticketId}, bson.M{"$set": bson.M{
 				"chatmessage": chatMessage.SupportChatId,
 				"updated_at":  updatedAt,
 			}})
@@ -495,21 +488,21 @@ func AddSellerMessage() gin.HandlerFunc {
 				c.JSON(http.StatusBadRequest, gin.H{"Error": updateErr.Error()})
 				return
 			}
+		} else {
+			// Add message to existing chat document
+			_, updateErr := SupportChatMessage.UpdateOne(ctx, bson.M{"SupportTicketId": ticketId}, bson.M{"$push": bson.M{
+				"messages": message,
+			}})
+			if updateErr != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"Error": updateErr.Error()})
+				return
+			}
 		}
 
-		_, updateErr := SupportChatMessage.UpdateOne(ctx, bson.M{"ticketId": ticketId}, bson.M{"$push": bson.M{
-			"messages": message,
-		}})
-		if updateErr != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"Error": updateErr.Error()})
-			return
-		}
 		c.JSON(http.StatusOK, gin.H{
 			"message": "Message has been sent successfully",
 		})
-
 	}
-
 }
 
 func GetChatMessagesHandler() gin.HandlerFunc {

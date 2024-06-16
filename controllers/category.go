@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -44,12 +45,14 @@ func AddCategory() gin.HandlerFunc {
 
 		categoryName := c.PostForm("category")
 
-		parentCategoryId := c.PostForm("parent_category")
-
 		if categoryName == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "category name is required"})
 			return
 		}
+
+		categoryName = strings.TrimSpace(categoryName)
+
+		parentCategoryId := c.PostForm("parent_category")
 
 		if parentCategoryId != "" {
 			category.Parent_Category, _ = primitive.ObjectIDFromHex(parentCategoryId)

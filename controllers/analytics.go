@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
 	"time"
@@ -197,11 +198,12 @@ func CountDocumentInRange(
 
 func CalculatePercentageChange(currentCount, previousCount int64) float64 {
 	if previousCount == 0 {
-
 		if currentCount > 0 {
 			return 100.0
 		}
 		return 0.0
 	}
-	return (float64(currentCount-previousCount) / float64(previousCount)) * 100
+	percentageChange := (float64(currentCount-previousCount) / float64(previousCount)) * 100
+
+	return math.Round(percentageChange*100) / 100
 }
