@@ -324,6 +324,107 @@ func ProductViewerAdmin() gin.HandlerFunc {
 	}
 }
 
+func AddProductByAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
+
+		var product models.Product
+
+		defer cancel()
+
+		sellerId := c.PostForm("sellerId")
+		if sellerId == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Seller id is required"})
+			return
+		}
+		product.Product_ID = primitive.NewObjectID()
+		product.Product_Name = c.PostForm("product_name")
+
+		attributesList := c.PostForm("attributes")
+		priceRanges := c.PostForm("priceRange")
+		fmt.Println(priceRanges)
+
+		if priceRanges != "" {
+			var productPriceRanges []models.ProductPriceRange
+			if err := json.Unmarshal([]byte(priceRanges), &productPriceRanges); err != nil {
+				fmt.Println(err)
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "Error while parsing price range"})
+				return
+			}
+
+			product.PriceRange = productPriceRanges
+		}
+
+		var attributes []models.AttributeValue
+		if err := json.Unmarshal([]byte(attributesList), &attributes); err != nil {
+			log.Println(err)
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "something went wrong"})
+			return
+		}
+
+		product.Attributes = attributes
+
+		price := strings.TrimSpace(c.PostForm("price"))
+
+		product.Price = price
+
+		product.Discription = c.PostForm("discription")
+		product.Category = c.PostForm("category")
+		//add time
+
+		product.Created_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		product.Updated_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+
+		form, err := c.MultipartForm()
+		if err != nil {
+			log.Println("error while multipart")
+			c.String(http.StatusBadRequest, "get form err: %s", err.Error())
+			return
+		}
+		files := form.File["files"]
+
+		var errors []string
+		var uploadedURLs []string
+		var resFileName []string
+		fmt.Println(files)
+		for _, file := range files {
+			f, err := file.Open()
+			if err != nil {
+				log.Fatal(err)
+				log.Println("error while opening file")
+				c.String(http.StatusInternalServerError, "get form err: %s", err.Error())
+				return
+			}
+			uploadedURL, err := saveFile(f, file)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("Error saving file %s: %s", file.Filename, err.Error()))
+			} else {
+				uploadedURLs = append(uploadedURLs, uploadedURL)
+			}
+			if len(errors) > 0 {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": errors})
+			} else {
+				c.JSON(http.StatusOK, gin.H{"url": uploadedURLs})
+			}
+		}
+		fmt.Println(resFileName)
+		product.Image = uploadedURLs
+
+		var sellers []string
+		sellers = append(sellers, sellerId)
+		product.SellerRegistered = sellers
+
+		_, anyerr := ProductCollection.InsertOne(ctx, product)
+		if anyerr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Not Created"})
+			return
+		}
+		defer cancel()
+		c.JSON(http.StatusOK, "Successfully added our Product Admin!!")
+	}
+}
+
 // this will give detail of the particular product, product id is mendatory filed
 func GetProduct() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -1151,6 +1252,66 @@ func GetFeaturedProducts() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, featuredProducts)
+
+	}
+
+}
+func GetSellerProductForAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if !checkAdmin(ctx, c) {
+			c.JSON(http.StatusForbidden, gin.H{"Error": "forbidden"})
+			return
+		}
+
+		var sellerId = c.Param("id")
+
+		var products []models.Product
+
+		cursor, err := ProductCollection.Find(ctx, bson.M{"sellerregistered": sellerId})
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		err = cursor.All(ctx, &products)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		//itertate through all products and generate presign url for image
+
+		for i := 0; i < len(products); i++ {
+
+			if products[i].Image != nil {
+
+				for j := 0; j < len(products[i].Image); j++ {
+
+					imageUrl, err := getPresignURL(products[i].Image[j])
+
+					if err !=
+
+						nil {
+
+						c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+
+						return
+
+					}
+
+					products[i].Image[j] = imageUrl
+
+				}
+
+			}
+		}
+
+		c.JSON(http.StatusOK, products)
 
 	}
 
