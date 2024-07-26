@@ -299,7 +299,7 @@ func RegisterAdmin() gin.HandlerFunc {
 		// Check if the email or mobile number is already registered
 		count, err := SellerCollection.CountDocuments(ctx, bson.M{"$or": []bson.M{
 			{"email": input.Email},
-			{"mobile": input.Mobile},
+			{"mobileno": input.Mobile},
 		}})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
