@@ -206,10 +206,10 @@ func GetFeaturedCategory() gin.HandlerFunc {
 		// Get featured categories sorted by updated time, latest one should come first
 		var featuredCategories []bson.M
 		findOptions := options.Find()
-		findOptions.SetSort(bson.D{{"updated_at", -1}})
+		findOptions.SetSort(bson.D{{Key: "updated_at", Value: -1}})
 		findOptions.SetLimit(10)
 
-		cursor, err := CategoriesCollection.Find(ctx, bson.M{"isFeatured": true}, findOptions)
+		cursor, err := CategoriesCollection.Find(ctx, bson.M{"isFeatured": true, "isApproved": true}, findOptions)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching featured categories: " + err.Error()})
 			return
@@ -245,7 +245,7 @@ func GetCategory() gin.HandlerFunc {
 		defer cancel()
 
 		// Execute aggregation pipeline
-		cursor, err := CategoriesCollection.Find(ctx, bson.M{})
+		cursor, err := CategoriesCollection.Find(ctx, bson.M{"isApproved": true})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, "Something went wrong. Please try again.")
 			return
