@@ -698,7 +698,7 @@ func SearchProductByQuery() gin.HandlerFunc {
 
 		limit, err := strconv.Atoi(c.Query("limit"))
 		if err != nil || limit <= 0 {
-			limit = 10 // Default limit
+			limit = 20 // Default limit
 		}
 
 		page, err := strconv.Atoi(c.Query("page"))
@@ -740,10 +740,22 @@ func SearchProductByQuery() gin.HandlerFunc {
 			}
 		}
 
+		//find if it has more products to be fetched
+
+		count, err := ProductCollection.CountDocuments(ctx, finalFilter)
+		if err != nil {
+
+			c.IndentedJSON(http.StatusNotFound, gin.H{"error": "Error fetching products"})
+			return
+
+		}
+
 		c.IndentedJSON(http.StatusOK, gin.H{
 			"products": searchProducts,
 			"page":     page,
 			"limit":    limit,
+			"nextPage": page + 1,
+			"hasMore":  count > int64(page*limit),
 		})
 
 	}
