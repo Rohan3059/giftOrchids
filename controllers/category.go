@@ -16,6 +16,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var CategoriesCollection *mongo.Collection = database.ProductData(database.Client, "Categories")
@@ -90,6 +91,12 @@ func AddCategory() gin.HandlerFunc {
 
 		category.Approved = false
 
+		category.IsFeatured = false
+
+		category.Created_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+
+		category.Updated_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+
 		count, err := CategoriesCollection.CountDocuments(ctx, bson.M{"category": category.Category})
 		defer cancel()
 		if err != nil {
@@ -112,32 +119,133 @@ func AddCategory() gin.HandlerFunc {
 
 	}
 }
+
+// make category as Featured , max count of featured category will be 10;
+func HandleCategoryFeatured() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		//check if not admin
+		if !checkAdmin(ctx, c) {
+			c.JSON(http.StatusUnauthorized, gin.H{"Error": "Unauthorized"})
+			return
+		}
+
+		var category models.Categories
+
+		categoryID := c.Param("id")
+		//parse bool from Query state
+
+		isFeatured, err := strconv.ParseBool(c.Query("state"))
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": err})
+			return
+		}
+
+		if categoryID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "category id is required"})
+			return
+		}
+
+		objectID, err := primitive.ObjectIDFromHex(categoryID)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": err})
+			return
+		}
+
+		//count number of featured category
+
+		count, err := CategoriesCollection.CountDocuments(ctx, bson.M{"isFeatured": true})
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": err})
+			return
+		}
+
+		if count >= 10 {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Maximum 10 featured categories allowed"})
+			return
+		}
+
+		err = CategoriesCollection.FindOne(ctx, bson.M{"_id": objectID}).Decode(&category)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": err})
+			return
+		}
+
+		category.IsFeatured = isFeatured
+		//update time
+
+		category.Updated_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+
+		_, err = CategoriesCollection.UpdateOne(ctx, bson.M{"_id": objectID}, bson.M{"$set": category})
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": err})
+			return
+		}
+
+		defer cancel()
+
+		c.JSON(http.StatusOK, "Succesfully updated category featured status as "+strconv.FormatBool(isFeatured))
+
+	}
+
+}
+
+// get featured category
+func GetFeaturedCategory() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Get featured categories sorted by updated time, latest one should come first
+		var featuredCategories []bson.M
+		findOptions := options.Find()
+		findOptions.SetSort(bson.D{{"updated_at", -1}})
+		findOptions.SetLimit(10)
+
+		cursor, err := CategoriesCollection.Find(ctx, bson.M{"isFeatured": true}, findOptions)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching featured categories: " + err.Error()})
+			return
+		}
+		defer cursor.Close(ctx)
+
+		if err = cursor.All(ctx, &featuredCategories); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error decoding featured categories: " + err.Error()})
+			return
+		}
+		//get image s3 url and append
+		for i, category := range featuredCategories {
+			url, err := getPresignURL(category["category_image"].(string))
+			if err != nil {
+				log.Println("Error generating pre-signed URL for image:", err)
+				continue
+			}
+			if url != "" {
+				featuredCategories[i]["category_image"] = url
+			}
+		}
+
+		defer cancel()
+
+		c.JSON(http.StatusOK, featuredCategories)
+	}
+}
+
 func GetCategory() gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		// Aggregation pipeline to perform $lookup with parent_category collection
-		pipeline := []bson.M{
-			{
-				"$match": bson.M{"isApproved": true},
-			},
-			{
-				"$lookup": bson.M{
-					"from":         "Categories",
-					"localField":   "parent_category",
-					"foreignField": "_id",
-					"as":           "parent_category_details",
-				},
-			},
-			{
-				"$sort": bson.M{"category": 1},
-			},
-		}
-
 		// Execute aggregation pipeline
-		cursor, err := CategoriesCollection.Aggregate(ctx, pipeline)
+		cursor, err := CategoriesCollection.Find(ctx, bson.M{})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, "Something went wrong. Please try again.")
 			return

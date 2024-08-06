@@ -96,6 +96,10 @@ type Categories struct {
 	Category_Description string             `json:"category_description" bson:"category_description"`
 	Parent_Category      primitive.ObjectID `json:"parent_category" bson:"parent_category"`
 	Approved             bool               `json:"isApproved" bson:"isApproved"`
+	Archived             bool               `json:"isArchived" bson:"isArchived"`
+	Created_at           time.Time          `json:"created_at" bson:"created_at"`
+	Updated_at           time.Time          `json:"updated_at" bson:"updated_at"`
+	IsFeatured           bool               `json:"isFeatured" bson:"isFeatured"`
 }
 
 type Seller struct {

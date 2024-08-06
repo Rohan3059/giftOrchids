@@ -27,6 +27,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var ProductCollection *mongo.Collection = database.ProductData(database.Client, "Products")
@@ -667,60 +668,84 @@ func SearchProductByQuery() gin.HandlerFunc {
 		var searchProducts []models.Product
 		queryParam := c.Query("name")
 		filter := []primitive.M{}
+
 		if queryParam != "" {
-			filter = append(filter, primitive.M{"$regex": queryParam})
+			filter = append(filter, primitive.M{"name": primitive.M{"$regex": queryParam, "$options": "i"}})
 		}
+
 		productCategory := c.Query("category")
-		//trim space
 		productCategory = strings.TrimSpace(productCategory)
-		fmt.Println(productCategory)
 		if productCategory != "" {
 			filter = append(filter, primitive.M{utils.Categories: productCategory})
 		}
+
 		brand := c.Query("brand")
 		if brand != "" {
 			filter = append(filter, primitive.M{utils.Brand: brand})
 		}
+
 		productName := c.Query("productname")
 		if productName != "" {
 			filter = append(filter, primitive.M{utils.ProductName: productName})
 		}
+
 		filter = append(filter, primitive.M{"approved": true})
+
 		finalFilter := primitive.M{}
 		if len(filter) > 0 {
 			finalFilter = primitive.M{"$and": filter}
 		}
-		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+
+		limit, err := strconv.Atoi(c.Query("limit"))
+		if err != nil || limit <= 0 {
+			limit = 10 // Default limit
+		}
+
+		page, err := strconv.Atoi(c.Query("page"))
+		if err != nil || page <= 0 {
+			page = 1 // Default page
+		}
+
+		skip := (page - 1) * limit
+
+		var ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		cursor, err := ProductCollection.Find(ctx, finalFilter)
+		findOptions := options.Find()
+		findOptions.SetLimit(int64(limit))
+		findOptions.SetSkip(int64(skip))
+		findOptions.SetSort(bson.D{{Key: "updated_at", Value: -1}}) // Sort by updated_at in descending order
+
+		cursor, err := ProductCollection.Find(ctx, finalFilter, findOptions)
 		if err != nil {
-			c.IndentedJSON(http.StatusNotFound, "Something went wrong while fetching the data")
+			c.IndentedJSON(http.StatusNotFound, gin.H{"error": "Error fetching products: " + err.Error()})
 			return
 		}
 		defer cursor.Close(ctx)
 
 		if err := cursor.All(ctx, &searchProducts); err != nil {
 			log.Println(err)
-			c.IndentedJSON(http.StatusBadRequest, "Invalid")
+			c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Error decoding products: " + err.Error()})
 			return
 		}
 
-		// Iterate over each product and get pre-signed URLs for each image
 		for i := range searchProducts {
 			for j := range searchProducts[i].Image {
-				// Get pre-signed URL for the image
 				url, err := getPresignURL(searchProducts[i].Image[j])
 				if err != nil {
 					log.Println("Error generating pre-signed URL for image:", err)
 					continue
 				}
-				// Update the image URL in the product
 				searchProducts[i].Image[j] = url
 			}
 		}
 
-		c.IndentedJSON(http.StatusOK, searchProducts)
+		c.IndentedJSON(http.StatusOK, gin.H{
+			"products": searchProducts,
+			"page":     page,
+			"limit":    limit,
+		})
+
 	}
 }
 
