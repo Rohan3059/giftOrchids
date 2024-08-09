@@ -2,6 +2,7 @@ package routes
 
 import (
 	"github.com/gin-contrib/cors"
+	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/kravi0/BizGrowth-backend/controllers"
 	"github.com/kravi0/BizGrowth-backend/middleware"
@@ -17,6 +18,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization", "Token", "token"} // Add "Token" header
 	incomingRoutes.Use(cors.New(config))
+	incomingRoutes.Use(gzip.Gzip(gzip.DefaultCompression))
 	incomingRoutes.GET("/search-suggestions", controllers.SuggestionsHandler())
 	incomingRoutes.GET("/search-product", controllers.SearchProduct())
 	incomingRoutes.GET("/getcategory", controllers.GetCategory())
