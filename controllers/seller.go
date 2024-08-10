@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -914,130 +916,259 @@ func SellerOtpVerfication() gin.HandlerFunc {
 }
 
 func DownloadSellerDocs() gin.HandlerFunc {
-
 	return func(c *gin.Context) {
-
 		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
 		docType := c.Query("doc")
 		id := c.Query("sellerId")
 
+		fmt.Println(id)
+
+		var sellerId primitive.ObjectID
+		var err error
+
+		// Check if the request is made by the seller or an admin
 		if checkSeller(ctx, c) {
-
 			uid, exist := c.Get("uid")
-
 			if !exist {
-
-				c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not authorized to perform this action"})
+				c.JSON(http.StatusUnauthorized, gin.H{"Error": "You're not authorized to perform this action"})
 				return
 			}
-			sellerId, err := primitive.ObjectIDFromHex(uid.(string))
+			sellerId, err = primitive.ObjectIDFromHex(uid.(string))
 			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not authorized to perform this action"})
+				c.JSON(http.StatusUnauthorized, gin.H{"Error": "Invalid user ID"})
 				return
 			}
-
-			filter := bson.M{"_id": sellerId}
-
-			var foundSeller models.Seller
-
-			//find seller
-			err = SellerCollection.FindOne(ctx, filter).Decode(&foundSeller)
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not authorized to perform this action"})
-
-			}
-
-			byteRes, err := SellerDocDownload(c, sellerId, docType)
-
-			if err != nil {
-
-				c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
-
-			}
-
-			c.Data(http.StatusOK, "application/pdf", byteRes)
-
 		} else {
-			sellerId, err := primitive.ObjectIDFromHex(id)
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"Error": "You're not authorized to perform this action"})
+			if !checkAdmin(ctx, c) {
+				c.JSON(http.StatusUnauthorized, gin.H{"Error": "You're not authorized to perform this action"})
 				return
 			}
-			byteRes, err := SellerDocDownload(c, sellerId, docType)
-
-			if err != nil {
-
-				c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
+			if id == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "Please provide seller id"})
 				return
-
 			}
-
-			c.Data(http.StatusOK, "application/pdf", byteRes)
+			if docType == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "Please provide document name to download"})
+				return
+			}
+			sellerId, err = primitive.ObjectIDFromHex(id)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid seller ID"})
+				return
+			}
 
 		}
+
+		SellerDocDownload(c, sellerId, docType)
 
 	}
 }
 
-func SellerDocDownload(c *gin.Context, sellerId primitive.ObjectID, docType string) ([]byte, error) {
-
+func SellerDocDownload(c *gin.Context, sellerId primitive.ObjectID, docType string) {
 	var seller models.Seller
 
 	filter := bson.M{"_id": sellerId}
 
 	err := SellerCollection.FindOne(context.TODO(), filter).Decode(&seller)
 	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+		return
+	}
 
+	var filesToZip map[string][]byte
+
+	switch docType {
+	case "aadhar":
+		aadharFile, err := DownloadPDFFromS3(seller.OwnerDetail.AadharDocument)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		contentType := GetContentType(seller.OwnerDetail.AadharDocument)
+		c.Data(http.StatusOK, contentType, aadharFile)
+
+	case "owner_pan":
+		ownerPanFile, err := DownloadPDFFromS3(seller.OwnerDetail.PanDocument)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		contentType := GetContentType(seller.OwnerDetail.PanDocument)
+		c.Data(http.StatusOK, contentType, ownerPanFile)
+
+	case "company_pan":
+		companyPanFile, err := DownloadPDFFromS3(seller.CompanyDetail.PANImage)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		contentType := GetContentType(seller.CompanyDetail.PANImage)
+		c.Data(http.StatusOK, contentType, companyPanFile)
+
+	case "gstin":
+		companyGstFile, err := DownloadPDFFromS3(seller.CompanyDetail.GSTINDoc)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		contentType := GetContentType(seller.CompanyDetail.GSTINDoc)
+		c.Data(http.StatusOK, contentType, companyGstFile)
+
+	case "cin":
+		companyCinFile, err := DownloadPDFFromS3(seller.CompanyDetail.CINDoc)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		contentType := GetContentType(seller.CompanyDetail.CINDoc)
+		c.Data(http.StatusOK, contentType, companyCinFile)
+
+	case "llpin":
+		companyLlpinFile, err := DownloadPDFFromS3(seller.CompanyDetail.LLPINDoc)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		contentType := GetContentType(seller.CompanyDetail.LLPINDoc)
+		c.Data(http.StatusOK, contentType, companyLlpinFile)
+
+	case "all":
+		filesToZip = make(map[string][]byte)
+
+		if seller.OwnerDetail.AadharDocument != "" {
+
+			//get extension
+
+			extension := GetExtension(GetContentType(seller.OwnerDetail.AadharDocument))
+
+			filesToZip["aadhar"+extension], err = DownloadPDFFromS3(seller.OwnerDetail.AadharDocument)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
+		if seller.OwnerDetail.PanDocument != "" {
+			extension := GetExtension(GetContentType(seller.OwnerDetail.PanDocument))
+			filesToZip["owner_pan"+extension], err = DownloadPDFFromS3(seller.OwnerDetail.PanDocument)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
+		if seller.CompanyDetail.PANImage != "" {
+			extension := GetExtension(GetContentType(seller.CompanyDetail.PANImage))
+			filesToZip["company_pan"+extension], err = DownloadPDFFromS3(seller.CompanyDetail.PANImage)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
+		if seller.CompanyDetail.GSTINDoc != "" {
+			extension := GetExtension(GetContentType(seller.CompanyDetail.GSTINDoc))
+			filesToZip["gstin"+extension], err = DownloadPDFFromS3(seller.CompanyDetail.GSTINDoc)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
+		if seller.CompanyDetail.CINDoc != "" {
+			extension := GetExtension(GetContentType(seller.CompanyDetail.CINDoc))
+			filesToZip["cin"+extension], err = DownloadPDFFromS3(seller.CompanyDetail.CINDoc)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
+		if seller.CompanyDetail.LLPINDoc != "" {
+			extension := GetExtension(GetContentType(seller.CompanyDetail.LLPINDoc))
+
+			filesToZip["llpin"+extension], err = DownloadPDFFromS3(seller.CompanyDetail.LLPINDoc)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
+		zipBuffer, err := ZipFiles(filesToZip)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Send the zip file in response
+		c.Data(http.StatusOK, "application/zip", zipBuffer)
+	}
+}
+
+func GetContentType(s3Url string) string {
+	var contentType string
+
+	if strings.Contains(s3Url, "pdf") {
+		contentType = "application/pdf"
+	} else if strings.Contains(s3Url, "docx") {
+		contentType = "application/docx"
+	} else if strings.Contains(s3Url, "mp4") {
+		contentType = "video/mp4"
+	} else if strings.Contains(s3Url, "jpg") {
+		contentType = "image/jpg"
+	} else if strings.Contains(s3Url, "png") {
+		contentType = "image/png"
+	} else if strings.Contains(s3Url, "webp") {
+		contentType = "image/webp"
+	} else if strings.Contains(s3Url, "avif") {
+		contentType = "image/avif"
+	} else if strings.Contains(s3Url, "svg") {
+		contentType = "image/svg"
+	} else if strings.Contains(s3Url, "jpeg") {
+		contentType = "image/jpeg"
+	}
+
+	return contentType
+}
+
+func GetExtension(contentType string) string {
+	//split  from contenttype /
+	split := strings.Split(contentType, "/")
+	var ext string
+
+	if len(split) > 1 {
+		ext = "." + split[1]
+	} else {
+		ext = "." + split[0]
+	}
+
+	return ext
+
+}
+
+func ZipFiles(files map[string][]byte) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	zipWriter := zip.NewWriter(buf)
+
+	for fileName, fileContent := range files {
+		fileWriter, err := zipWriter.Create(fileName)
+		if err != nil {
+			return nil, err
+		}
+		_, err = fileWriter.Write(fileContent)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err := zipWriter.Close()
+	if err != nil {
 		return nil, err
 	}
 
-	if docType == "aadhar" {
-
-		aadharFile, err := DownloadPDFFromS3(seller.OwnerDetail.AadharDocument)
-
-		return aadharFile, err
-
-	}
-
-	if docType == "owner_pan" {
-
-		ownerPanFile, err := DownloadPDFFromS3(seller.OwnerDetail.PanDocument)
-
-		return ownerPanFile, err
-	}
-
-	if docType == "company_pan" {
-
-		companyPanFile, err := DownloadPDFFromS3(seller.CompanyDetail.PANImage)
-
-		return companyPanFile, err
-	}
-
-	if docType == "gstin" {
-
-		companyGstFile, err := DownloadPDFFromS3(seller.CompanyDetail.GSTINDoc)
-
-		return companyGstFile, err
-	}
-
-	if docType == "cin" {
-
-		companyCinFile, err := DownloadPDFFromS3(seller.CompanyDetail.CINDoc)
-
-		return companyCinFile, err
-	}
-
-	if docType == "llpin" {
-
-		companyLlpinFile, err := DownloadPDFFromS3(seller.CompanyDetail.LLPINDoc)
-
-		return companyLlpinFile, err
-	}
-
-	return nil, errors.New("unable to download file")
-
+	return buf.Bytes(), nil
 }
 
 func DownloadAllFiles() gin.HandlerFunc {

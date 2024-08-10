@@ -116,6 +116,10 @@ func DownloadPDFFromS3(s3Url string) ([]byte, error) {
 
 	keyName := extractKeyFromURL(s3Url)
 
+	if keyName == "" {
+		return nil, errors.New("Invalid S3 URL" + keyName)
+	}
+
 	// Input parameters for the S3 object you want to download
 	input := &s3.GetObjectInput{
 		Bucket: aws.String(bucketName),
@@ -243,7 +247,6 @@ func ProductViewerAdmin() gin.HandlerFunc {
 
 		attributesList := c.PostForm("attributes")
 		priceRanges := c.PostForm("priceRange")
-		fmt.Println(priceRanges)
 
 		if priceRanges != "" {
 			var productPriceRanges []models.ProductPriceRange
@@ -1212,13 +1215,17 @@ func MakeProductFeatured() gin.HandlerFunc {
 
 		if err != nil {
 
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Unable to update product "})
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Unable to find product "})
 
 			return
 
 		}
 
-		update := bson.M{"$set": bson.M{"featured": isFeaturedBool}}
+		//get current time in RFC
+
+		updateTime := time.Now().Format(time.RFC3339)
+
+		update := bson.M{"$set": bson.M{"featured": isFeaturedBool, "updated_at": updateTime}}
 
 		_, err = ProductCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
 
@@ -1245,7 +1252,11 @@ func GetFeaturedProducts() gin.HandlerFunc {
 
 		defer cancel()
 
-		cursor, err := ProductCollection.Find(ctx, bson.M{"featured": true, "approved": true, "isRejected": false})
+		findOptions := options.Find()
+		findOptions.SetSort(bson.D{{Key: "updated_at", Value: -1}})
+		findOptions.SetLimit(10)
+
+		cursor, err := ProductCollection.Find(ctx, bson.M{"featured": true, "approved": true, "isRejected": false}, findOptions)
 
 		if err != nil {
 

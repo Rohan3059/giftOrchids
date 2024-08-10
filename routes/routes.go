@@ -128,5 +128,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 
 	incomingRoutes.GET("/admin/load", controllers.LoadAdmin())
 
+	incomingRoutes.GET("/admin/seller/doc/download", controllers.DownloadSellerDocs())
+
 	//incomingRoutes.GET("/getcategory", controllers.GetCategory())
 }

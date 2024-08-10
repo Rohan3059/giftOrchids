@@ -14,7 +14,7 @@ type Product struct {
 	Discription      string               `json:"discription" validate:"required"`
 	Category         string               `json:"category" validate:"required"`
 	SKU              string               `json:"sku" validate:"required"`
-	Featured         bool                 `json:"featured"`
+	Featured         bool                 `json:"featured" bson:"featured"`
 	Approved         bool                 `json:"approved"`
 	SellerRegistered []string             `json:"sellerid"`
 	Attributes       []AttributeValue     `json:"attributes"`
