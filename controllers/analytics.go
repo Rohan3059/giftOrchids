@@ -1,7 +1,10 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
+	"fmt"
 	"log"
 	"math"
 	"net/http"
@@ -206,4 +209,70 @@ func CalculatePercentageChange(currentCount, previousCount int64) float64 {
 	percentageChange := (float64(currentCount-previousCount) / float64(previousCount)) * 100
 
 	return math.Round(percentageChange*100) / 100
+}
+
+func GenerateCSVByCollection() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		collectionName := c.Query("collection") // Collection name from URL parameter
+		if collectionName == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Collection name is required"})
+			return
+		}
+
+		switch collectionName {
+		case "seller":
+			GetSellerCSV(c)
+		case "product":
+			GetProductsCsv(c)
+		case "user":
+			GetUserCsv(c)
+		case "enquiry":
+			GetEnquiryDetailsCsv(c)
+		}
+
+	}
+}
+
+func formatValue(value interface{}) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case float64:
+		return strconv.FormatFloat(v, 'f', 2, 64)
+	case int32, int64, int:
+		return strconv.Itoa(v.(int))
+	case bool:
+		return strconv.FormatBool(v)
+	case primitive.ObjectID:
+		return v.Hex()
+	case primitive.DateTime:
+		return v.Time().Format(time.RFC3339)
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+func GenerateCSV(headers []string, rows [][]string) ([]byte, error) {
+	b := &bytes.Buffer{}
+	writer := csv.NewWriter(b)
+
+	// Write CSV header
+	if err := writer.Write(headers); err != nil {
+		return nil, err
+	}
+
+	// Write data rows
+	for _, row := range rows {
+		if err := writer.Write(row); err != nil {
+			return nil, err
+		}
+	}
+
+	// Flush the writer to ensure all data is written to the buffer
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return nil, err
+	}
+
+	return b.Bytes(), nil
 }

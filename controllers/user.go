@@ -164,3 +164,54 @@ func GetUsersDetails_Admin() gin.HandlerFunc {
 		c.JSON(http.StatusOK, results)
 	}
 }
+
+func GetUserCsv(c *gin.Context) {
+	var users []models.USer
+
+	var ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	cursor, err := UserCollection.Find(ctx, bson.M{})
+	if err != nil {
+		c.IndentedJSON(http.StatusNotFound, gin.H{"error": "Error fetching users: " + err.Error()})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	if err := cursor.All(ctx, &users); err != nil {
+		log.Println(err)
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Error decoding users: " + err.Error()})
+		return
+	}
+
+	// Define CSV headers
+	headers := []string{"UserName", "Email", "MobileNo", "Address"}
+
+	// Collect rows for CSV
+	var rows [][]string
+	for _, user := range users {
+		row := []string{
+			user.UserName,
+			user.Email,
+			user.MobileNo,
+			user.User_Address,
+		}
+		rows = append(rows, row)
+	}
+
+	// Generate CSV
+	b, err := GenerateCSV(headers, rows)
+	if err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Error": "Error generating CSV: " + err.Error()})
+		return
+	}
+
+	// Set CSV-specific headers
+	c.Header("Content-Description", "File Transfer")
+	c.Header("Content-Disposition", "attachment; filename=users.csv")
+	c.Header("Content-Type", "text/csv")
+	c.Header("Content-Transfer-Encoding", "binary")
+
+	// Write the CSV data to the response
+	c.Data(http.StatusOK, "text/csv", b)
+}

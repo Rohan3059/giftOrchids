@@ -59,8 +59,6 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/seller-login", controllers.SendLoginOTP())
 	incomingRoutes.POST("/seller/verify-otp", controllers.SellerOtpVerfication())
 
-	incomingRoutes.GET("/get-docs", controllers.DownloadSellerDocs())
-
 	incomingRoutes.Use(middleware.UserAuthentication())
 	incomingRoutes.POST("/product-enquiry", controllers.EnquiryHandler())
 	incomingRoutes.GET("/get-enquiry", controllers.GetUserEnquiries())
@@ -129,6 +127,8 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.GET("/admin/load", controllers.LoadAdmin())
 
 	incomingRoutes.GET("/admin/seller/doc/download", controllers.DownloadSellerDocs())
+
+	incomingRoutes.GET("/admin/get-csv", controllers.GenerateCSVByCollection())
 
 	//incomingRoutes.GET("/getcategory", controllers.GetCategory())
 }

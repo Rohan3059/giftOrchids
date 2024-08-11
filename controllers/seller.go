@@ -1685,3 +1685,130 @@ func SellerUpdateProduct() gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"Message": "Product updated successfully"})
 	}
 }
+
+func GetSellerCSV(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Retrieve sellers from DB
+	result, err := SellerCollection.Find(ctx, bson.M{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error while getting sellers: " + err.Error()})
+		return
+	}
+	defer result.Close(ctx)
+
+	var sellers []models.Seller
+	if err := result.All(ctx, &sellers); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error while decoding sellers: " + err.Error()})
+		return
+	}
+
+	// Define CSV headers
+	headers := []string{
+		"Company Name",
+		"Email",
+		"Mobile No",
+		"Business Entity",
+		"Business Type",
+		"Company Origin",
+		"No Of Employee",
+		"Permanent Address",
+		"Year Established",
+		"CIN",
+		"PAN",
+		"Owner Name",
+		"Owner Email",
+		"Owner Mobile No",
+		"Owner Gender",
+		"Owner Date Of Birth",
+		"Owner PAN",
+		"Owner Aadhar",
+		"Owner Passport",
+		"Business Licenses",
+		"Export Licenses",
+		"CIN Doc",
+		"GSTIN Doc",
+		"PAN Doc",
+		"Owner Aadhar Doc",
+		"Owner PAN Doc",
+		"Owner Passport Doc",
+	}
+
+	// Collect rows for CSV
+	var rows [][]string
+	for _, seller := range sellers {
+		row := []string{
+			seller.Company_Name,
+			seller.Email,
+			seller.MobileNo,
+			seller.CompanyDetail.BusinessEntity,
+			seller.CompanyDetail.BusinessType,
+			seller.CompanyDetail.CompanyOrigin,
+			"'" + seller.CompanyDetail.NoOfEmployee + "'",
+			seller.CompanyDetail.PermanentAddress,
+			seller.CompanyDetail.YearEstablished,
+			seller.CompanyDetail.CIN,
+			seller.CompanyDetail.PAN,
+			seller.OwnerDetail.Name,
+			seller.OwnerDetail.Email,
+			seller.OwnerDetail.MobileNo,
+			seller.OwnerDetail.Gender,
+			seller.OwnerDetail.DateOfBirth,
+			seller.OwnerDetail.AadharNumber,
+			seller.OwnerDetail.PAN,
+			seller.OwnerDetail.PassportNo,
+		}
+
+		// Combine all business licenses
+		var licenses []string
+		for _, license := range seller.CompanyDetail.BusinessLicenses {
+			licenses = append(licenses, "["+license.LicenseName+":"+license.LicenseValue+", Issued Date :"+license.IssuedDate+"]")
+		}
+		row = append(row, strings.Join(licenses, ","))
+
+		// Combine all export licenses
+		var exportlicenses []string
+		for _, exportlicense := range seller.CompanyDetail.ExportPermission {
+			exportlicenses = append(exportlicenses, "["+exportlicense.LicenseName+":"+exportlicense.LicenseValue+", Issued Date :"+exportlicense.IssuedDate+"]")
+		}
+		row = append(row, strings.Join(exportlicenses, ","))
+
+		// Get pre-signed URLs for documents
+		cinres, _ := getPresignURL(seller.CompanyDetail.CINDoc)
+		row = append(row, cinres)
+
+		gstres, _ := getPresignURL(seller.CompanyDetail.GSTINDoc)
+		row = append(row, gstres)
+
+		panres, _ := getPresignURL(seller.CompanyDetail.PANImage)
+		row = append(row, panres)
+
+		ownerAadharres, _ := getPresignURL(seller.OwnerDetail.AadharDocument)
+		row = append(row, ownerAadharres)
+
+		ownerPANres, _ := getPresignURL(seller.OwnerDetail.PanDocument)
+		row = append(row, ownerPANres)
+
+		ownerPassportres, _ := getPresignURL(seller.OwnerDetail.PassportDocument)
+		row = append(row, ownerPassportres)
+
+		rows = append(rows, row)
+	}
+
+	// Generate CSV
+	csvData, err := GenerateCSV(headers, rows)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating CSV: " + err.Error()})
+		return
+	}
+
+	// Set CSV-specific headers
+	c.Header("Content-Description", "File Transfer")
+	c.Header("Content-Disposition", "attachment; filename=sellers.csv")
+	c.Header("Content-Type", "text/csv")
+	c.Header("Content-Transfer-Encoding", "binary")
+
+	// Write the CSV data to the response
+	c.Data(http.StatusOK, "text/csv", csvData)
+}

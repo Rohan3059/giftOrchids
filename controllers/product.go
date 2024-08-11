@@ -1364,3 +1364,82 @@ func GetSellerProductForAdmin() gin.HandlerFunc {
 	}
 
 }
+
+func GetProductsCsv(c *gin.Context) {
+	var searchProducts []models.Product
+
+	var ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	cursor, err := ProductCollection.Find(ctx, bson.M{})
+	if err != nil {
+		c.IndentedJSON(http.StatusNotFound, gin.H{"error": "Error fetching products: " + err.Error()})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	if err := cursor.All(ctx, &searchProducts); err != nil {
+		log.Println(err)
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Error decoding products: " + err.Error()})
+		return
+	}
+
+	// Pre-sign image URLs
+	for i := range searchProducts {
+		for j := range searchProducts[i].Image {
+			url, err := getPresignURL(searchProducts[i].Image[j])
+			if err != nil {
+				log.Println("Error generating pre-signed URL for image:", err)
+				continue
+			}
+			searchProducts[i].Image[j] = url
+		}
+	}
+
+	// Prepare CSV headers
+	headers := []string{"Product Name", "Category", "Price", "Images", "Description", "isApproved", "isFeatured", "isRejected", "Price Range"}
+
+	// Prepare CSV rows
+	var rows [][]string
+	for _, product := range searchProducts {
+		priceFloat, err := strconv.ParseFloat(product.Price, 64)
+		if err != nil {
+			priceFloat = 0.0
+		}
+
+		row := []string{
+			product.Product_Name,
+			product.Category,
+			strconv.FormatFloat(priceFloat, 'f', 2, 64),
+			strings.Join(product.Image, ";"),
+			product.Discription,
+			strconv.FormatBool(product.Approved),
+			strconv.FormatBool(product.Featured),
+			strconv.FormatBool(product.IsRejected),
+		}
+
+		var priceRange []string
+		for _, price := range product.PriceRange {
+			priceRange = append(priceRange, "["+strconv.FormatFloat(float64(price.MinQuantity), 'f', 2, 64)+"-"+strconv.FormatFloat(float64(price.MaxQuantity), 'f', 2, 64)+":"+price.Price+"]")
+		}
+		row = append(row, strings.Join(priceRange, ";"))
+
+		rows = append(rows, row)
+	}
+
+	// Generate CSV data
+	csvData, err := GenerateCSV(headers, rows)
+	if err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Set CSV-specific headers
+	c.Header("Content-Description", "File Transfer")
+	c.Header("Content-Disposition", "attachment; filename=products.csv")
+	c.Header("Content-Type", "text/csv")
+	c.Header("Content-Transfer-Encoding", "binary")
+
+	// Write the CSV data to the response
+	c.Data(http.StatusOK, "text/csv", csvData)
+}

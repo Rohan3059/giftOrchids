@@ -522,3 +522,85 @@ func DeleteRequirementMessage() gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"message": "RequirementMessage deleted successfully"})
 	}
 }
+
+func GetEnquiryDetailsCsv(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if !checkAdmin(ctx, c) {
+		c.JSON(http.StatusForbidden, gin.H{"Error": "Admin Token Not found"})
+		return
+	}
+
+	var enquiries []models.Enquire
+
+	cursor, err := EnquireCollection.Find(ctx, primitive.M{})
+	if err != nil {
+		log.Print(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to fetch enquiries"})
+		return
+	}
+
+	if err := cursor.All(ctx, &enquiries); err != nil {
+		log.Print(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error decoding enquiries"})
+		return
+	}
+
+	// Write CSV header
+	headers := []string{
+		"Enquiry ID", "Quantity", "Resolved", "Status",
+		"Enquire Note", "Enquire Date", "Product Name", "Product Category",
+		"Product Price", "User Email", "User Mobile", "Seller Company Name",
+		"Seller Email", "Seller Mobile",
+	}
+
+	// Enrich enquiry data with additional details and write to CSV
+	var rows [][]string
+	for _, enquiry := range enquiries {
+		productDetails := getProductDetails(ctx, enquiry.Product_id)
+		userDetails := getUserDetails(ctx, enquiry.User_id)
+
+		// Type assertions
+		productName, _ := productDetails["name"].(string)
+		productCategory, _ := productDetails["category"].(string)
+		productPrice, _ := productDetails["price"].(string)
+
+		userEmail, _ := userDetails["email"].(string)
+		userMobile, _ := userDetails["mobile"].(string)
+		var sellerCompanyName, sellerEmail, sellerMobile string
+		if sellers, ok := productDetails["sellers"].([]map[string]interface{}); ok && len(sellers) > 0 {
+			seller := sellers[0]
+			sellerCompanyName, _ = seller["company_name"].(string)
+			sellerEmail, _ = seller["email"].(string)
+			sellerMobile, _ = seller["mobile"].(string)
+		}
+
+		// Create row
+		row := []string{
+			string(enquiry.EnquireId),
+			strconv.Itoa(enquiry.Quantity), strconv.FormatBool(enquiry.Resolved),
+			enquiry.Status, enquiry.Enquiry_note, enquiry.Enquire_date.String(),
+			productName, productCategory, productPrice,
+			userEmail, userMobile, sellerCompanyName, sellerEmail, sellerMobile,
+		}
+
+		rows = append(rows, row)
+	}
+
+	b, err := GenerateCSV(headers, rows)
+
+	if err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Error": "Error generating CSV: " + err.Error()})
+		return
+	}
+
+	// Set CSV-specific headers
+	c.Header("Content-Description", "File Transfer")
+	c.Header("Content-Disposition", "attachment; filename=enquiries.csv")
+	c.Header("Content-Type", "text/csv")
+	c.Header("Content-Transfer-Encoding", "binary")
+
+	// Write the CSV data to the response
+	c.Data(http.StatusOK, "text/csv", b)
+}
