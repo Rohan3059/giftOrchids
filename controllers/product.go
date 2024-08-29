@@ -1254,7 +1254,7 @@ func GetFeaturedProducts() gin.HandlerFunc {
 
 		findOptions := options.Find()
 		findOptions.SetSort(bson.D{{Key: "updated_at", Value: -1}})
-		findOptions.SetLimit(10)
+		findOptions.SetLimit(20)
 
 		cursor, err := ProductCollection.Find(ctx, bson.M{"featured": true, "approved": true, "isRejected": false}, findOptions)
 

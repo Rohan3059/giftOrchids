@@ -1213,7 +1213,8 @@ func LoadSeller() gin.HandlerFunc {
 		defer cancel()
 
 		if !checkSeller(ctx, c) {
-			c.JSON(http.StatusForbidden, gin.H{"Error": "forbidden"})
+			c.JSON(http.StatusForbidden, gin.H{"Error": "You're not authorized"})
+			return
 		}
 
 		sellerID, exists := c.Get("uid")

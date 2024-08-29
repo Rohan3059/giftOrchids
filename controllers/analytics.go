@@ -228,6 +228,9 @@ func GenerateCSVByCollection() gin.HandlerFunc {
 			GetUserCsv(c)
 		case "enquiry":
 			GetEnquiryDetailsCsv(c)
+		default:
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid collection name"})
+			return
 		}
 
 	}

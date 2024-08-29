@@ -130,5 +130,9 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 
 	incomingRoutes.GET("/admin/get-csv", controllers.GenerateCSVByCollection())
 
-	//incomingRoutes.GET("/getcategory", controllers.GetCategory())
+	incomingRoutes.POST("/admin/post-blog", controllers.CreateBlog())
+	incomingRoutes.GET("/admin/blogs", controllers.GetBlogs())
+	incomingRoutes.GET("/admin/blog/:id", controllers.GetBlogByID())
+	incomingRoutes.POST("/admin/blog/publish/:id", controllers.PublishBlog())
+
 }
