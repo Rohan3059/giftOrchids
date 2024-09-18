@@ -23,6 +23,10 @@ func CreateContentItem() gin.HandlerFunc {
 		defer cancel()
 
 		ContentKey := c.PostForm("contentKey")
+		if ContentKey == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Content can not be empty"})
+			return
+		}
 
 		var existingContentItem models.ContentItem
 		err := contentCollection.FindOne(ctx, bson.M{"contentKey": ContentKey}).Decode(&existingContentItem)
@@ -36,21 +40,27 @@ func CreateContentItem() gin.HandlerFunc {
 		}
 
 		Type := c.PostForm("type")
+		if Type == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Content type can not be empty"})
+			return
+		}
 		Description := c.PostForm("description")
 
 		form, err := c.MultipartForm()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Error while parsing files"})
+			return
 
 		}
 
 		var content interface{}
 		if Type == "file" {
 			files := form.File["content"]
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"Status": http.StatusBadRequest, "Message": "error", "data": "Failed to get image file: " + err.Error()})
+			if files == nil {
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "Content file can not be empty"})
 				return
 			}
+
 			var uploadedURLs []string
 			for _, file := range files {
 				f, err := file.Open()
@@ -258,22 +268,30 @@ func GetContentItemsByKey() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		contentType := c.Param("contentKey")
 
-		var contentItems []models.ContentItem
+		var contentItems models.ContentItem
 		defer cancel()
 
-		results, err := contentCollection.Find(ctx, bson.M{"contentKey": contentType})
+		err := contentCollection.FindOne(ctx, bson.M{"contentKey": contentType}).Decode(&contentItems)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Status": http.StatusInternalServerError, "Message": "error", "data": err.Error()})
 			return
 		}
 
-		defer results.Close(ctx)
-		for results.Next(ctx) {
-			var singleContentItem models.ContentItem
-			if err = results.Decode(&singleContentItem); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"Status": http.StatusInternalServerError, "Message": "error", "data": err.Error()})
+		if content, ok := contentItems.Content.(primitive.A); ok {
+			updatedContent := make([]string, len(content))
+			for i, item := range content {
+				if item != nil {
+					if strItem, ok := item.(string); ok {
+						url, err := getPresignURL(strItem)
+						if err == nil {
+							updatedContent[i] = url
+						} else {
+							updatedContent[i] = ""
+						}
+					}
+				}
 			}
-			contentItems = append(contentItems, singleContentItem)
+			contentItems.Content = updatedContent // Assign the updated slice back to Content
 		}
 
 		c.JSON(http.StatusOK, gin.H{"Status": http.StatusOK, "Message": "success", "data": contentItems})
