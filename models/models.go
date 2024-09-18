@@ -247,3 +247,23 @@ type ChatMessage struct {
 	Sender  string    `json:"sender" bson:"sender"`
 	SentAt  time.Time `json:"sent_at" bson:"sent_at" `
 }
+
+type ContentItem struct {
+	ID          primitive.ObjectID `bson:"_id" json:"id"`
+	ContentKey  string             `bson:"contentKey" json:"contentKey"`
+	Type        string             `bson:"type" json:"type" validate:"required"`
+	Description string             `bson:"description" json:"description"`
+	Content     interface{}        `bson:"content" json:"content"`
+	Metadata    map[string]string  `bson:"metadata" json:"metadata"`
+	IsActive    bool               `bson:"is_active" json:"is_active"`
+	CreatedAt   time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt   time.Time          `bson:"updated_at" json:"updated_at"`
+}
+
+type Settings struct {
+	ID         primitive.ObjectID `bson:"_id" json:"id"`
+	Name       string             `bson:"name" json:"name" validate:"required"`
+	Value      interface{}        `bson:"value" json:"value"`
+	Created_at time.Time          `bson:"created_at" json:"created_at"`
+	Updated_at time.Time          `bson:"updated_at" json:"updated_at"`
+}

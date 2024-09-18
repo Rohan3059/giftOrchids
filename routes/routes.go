@@ -33,17 +33,17 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.GET("/get-productReference", controllers.FetchProductsAndReferencesHandler())
 	incomingRoutes.GET("/product-reference", controllers.GetProductReferenceHandler())
 	incomingRoutes.GET("/featured-products", controllers.GetFeaturedProducts())
-
+	incomingRoutes.GET("/blogs", controllers.GetPublishedBlogs())
+	incomingRoutes.GET("/blog/get", controllers.GetBlogBySlug())
 	incomingRoutes.GET("/all-attributesType", controllers.GetAllAttributes())
 	incomingRoutes.GET("/get-attributeType/:id", controllers.GetAttributeByID())
-
 	incomingRoutes.GET("/approved-product-reviews", controllers.GetProductApprovedReviews())
 	incomingRoutes.POST("/create-ticket", controllers.CreateTicket())
 	incomingRoutes.GET("/get-feeds", controllers.GetAllFeedsHandler())
+	incomingRoutes.GET("/content/get-by-key/:contentKey", controllers.GetContentItemsByKey())
 
 	incomingRoutes.POST("/add-admin", controllers.RegisterAdmin())
 
-	//incomingRoutes.GET("/getseller", controllers.GetSeller())
 	incomingRoutes.POST("/seller/reset-password", controllers.ResetPassword())
 
 	incomingRoutes.POST("/validatesellerotp", controllers.LoginValidatePasswordOTP())
@@ -134,5 +134,14 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.GET("/admin/blogs", controllers.GetBlogs())
 	incomingRoutes.GET("/admin/blog/:id", controllers.GetBlogByID())
 	incomingRoutes.POST("/admin/blog/publish/:id", controllers.PublishBlog())
+	incomingRoutes.POST("/admin/blog/archive/:id", controllers.ArchiveBlog())
+	incomingRoutes.DELETE("/admin/blog/delete/:id", controllers.DeleteBlog())
+	incomingRoutes.POST("/admin/blog/update/:id", controllers.UpdateBlog())
+
+	incomingRoutes.POST("/admin/content/create", controllers.CreateContentItem())
+	incomingRoutes.POST("/admin/content/toggle-status/:id", controllers.ToggleContentItemStatus())
+	incomingRoutes.POST("/admin/content/update-file-content/:contentKey", controllers.UpdateFileContentItemContent())
+	incomingRoutes.POST("/admin/content/delete-file-content/:contentItemId/:index", controllers.DeleteImageFromContentItem())
+	incomingRoutes.DELETE("/admin/content/delete/:id", controllers.DeleteContentItem())
 
 }

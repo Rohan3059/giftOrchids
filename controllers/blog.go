@@ -104,23 +104,39 @@ func CreateBlog() gin.HandlerFunc {
 
 }
 
-// publish blog
+// PublishBlog updates a blog post to set it as published
 func PublishBlog() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
 		id := c.Param("id")
-		var blog models.Blog
-		err := BlogCollection.FindOne(context.Background(), bson.M{"_id": id}).Decode(&blog)
+		objId, err := primitive.ObjectIDFromHex(id)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to get blog"})
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid blog ID"})
 			return
 		}
-		blog.Published = true
-		_, err = BlogCollection.UpdateOne(context.Background(), bson.M{"_id": id}, bson.M{"$set": blog})
+
+		// Update the blog to set Published to true and IsArchived to false
+		update := bson.M{
+			"$set": bson.M{
+				"published":   true,
+				"is_archived": false,
+			},
+		}
+
+		result, err := BlogCollection.UpdateOne(ctx, bson.M{"_id": objId}, update)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to update blog"})
 			return
 		}
-		c.JSON(http.StatusOK, blog)
+
+		if result.MatchedCount == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"Error": "Blog not found"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"Status": http.StatusOK, "Message": "Blog published successfully"})
 	}
 }
 
@@ -145,35 +161,35 @@ func GetAllBlogs() gin.HandlerFunc {
 // get only title, cover, created_at for all blogs
 func GetBlogs() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Define the projection to select only the desired fields
+		ctx := context.Background()
+
 		projection := bson.D{
 			{Key: "_id", Value: 1},
 			{Key: "title", Value: 1},
 			{Key: "coverImage", Value: 1},
 			{Key: "created_at", Value: 1},
+			{Key: "keywords", Value: 1},
 			{Key: "author", Value: 1},
 		}
 
-		// Fetch the blogs with the defined projection
-		cursor, err := BlogCollection.Find(context.Background(), bson.D{}, options.Find().SetProjection(projection))
+		cursor, err := BlogCollection.Find(ctx, bson.D{}, options.Find().SetProjection(projection))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get blogs"})
 			return
 		}
-		defer cursor.Close(context.Background())
+		defer cursor.Close(ctx)
 
 		var blogs []struct {
-			BlogID     primitive.ObjectID `bson:"_id"`
-			Title      string             `json:"title"`
-			CoverImage string             `json:"coverImage"`
-			CreatedAt  time.Time          `json:"created_at"`
-			Author     string             `json:"author"`
+			BlogID     primitive.ObjectID `bson:"_id" json:"id"`
+			Title      string             `bson:"title" json:"title"`
+			CoverImage string             `bson:"coverImage" json:"coverImage"`
+			CreatedAt  time.Time          `bson:"created_at" json:"created_at"`
+			Author     string             `bson:"author" json:"author"`
+			Keywords   []string           `bson:"keywords" json:"keywords"`
 		}
 
-		// Decode the cursor into the blogs slice
-		err = cursor.All(context.Background(), &blogs)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to parse blogs"})
+		if err := cursor.All(ctx, &blogs); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode blogs"})
 			return
 		}
 
@@ -187,8 +203,7 @@ func GetBlogs() gin.HandlerFunc {
 			}
 		}
 
-		// Respond with the selected blog fields
-		c.JSON(http.StatusOK, blogs)
+		c.JSON(http.StatusOK, gin.H{"Status": http.StatusOK, "Message": "success", "data": blogs})
 	}
 }
 
@@ -196,8 +211,6 @@ func GetBlogs() gin.HandlerFunc {
 func GetBlogByID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
-		fmt.Print("ID=" + id)
-		//convrt to objectid
 		objID, er := primitive.ObjectIDFromHex(id)
 		if er != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid ID"})
@@ -220,34 +233,220 @@ func GetBlogByID() gin.HandlerFunc {
 }
 
 // update blog
+// UpdateBlog updates an existing blog post
 func UpdateBlog() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
-		var blog models.Blog
-		if err := c.ShouldBindJSON(&blog); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
+		objID, err := primitive.ObjectIDFromHex(id)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid ID"})
 			return
 		}
-		filter := bson.M{"_id": id}
-		update := bson.M{"$set": blog}
-		_, err := BlogCollection.UpdateOne(context.Background(), filter, update)
+
+		title := c.PostForm("title")
+		if title == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "title is required"})
+			return
+		}
+
+		slug := c.PostForm("slug")
+
+		if slug == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "slug is required"})
+			return
+		}
+
+		subtitle := c.PostForm("subtitle")
+
+		content := c.PostForm("blogContent")
+
+		author := c.PostForm("author")
+
+		keywords := c.PostForm("keywords")
+
+		form, err := c.MultipartForm()
+		if err != nil {
+			log.Println("error while multipart")
+			c.String(http.StatusBadRequest, "get form err: %s", err.Error())
+			return
+		}
+		files := form.File["cover"]
+
+		var url string
+
+		if len(files) != 0 {
+
+			f, err := files[0].Open()
+			if err != nil {
+				c.String(http.StatusInternalServerError, "get form err: %s", err.Error())
+				return
+			}
+			uploadedURL, err := saveFile(f, files[0])
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			} else {
+				url = uploadedURL
+			}
+
+		}
+		// Prepare the update document with the $set operator
+		setUpdate := bson.M{}
+
+		if title != "" {
+			setUpdate["title"] = title
+		}
+		if slug != "" {
+			setUpdate["slug"] = slug
+		}
+		if subtitle != "" {
+			setUpdate["subtitle"] = subtitle
+		}
+		if content != "" {
+			setUpdate["contentUrl"] = content
+		}
+		if author != "" {
+			setUpdate["author"] = author
+		}
+		if keywords != "" {
+			setUpdate["keywords"] = keywords
+		}
+		if url != "" {
+			setUpdate["coverImage"] = url
+		}
+
+		// Now create the update document
+		update := bson.M{"$set": setUpdate}
+		// Perform the update
+		result := BlogCollection.FindOneAndUpdate(context.Background(), bson.M{"_id": objID}, update)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to update blog"})
 			return
 		}
-		c.JSON(http.StatusOK, blog)
+
+		if result.Err() != nil {
+			c.JSON(http.StatusNotFound, gin.H{"Error": result.Err().Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"Status": http.StatusOK, "Message": "Blog updated successfully", "data": result})
 	}
 }
 
 // delete blog
 func DeleteBlog() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		id := c.Param("id")
-		_, err := BlogCollection.DeleteOne(context.Background(), bson.M{"_id": id})
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to delete blog"})
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if !checkAdmin(ctx, c) {
+			c.JSON(http.StatusForbidden, gin.H{"message": "You're not authroize for this."})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"message": "Blog deleted successfully"})
+
+		id := c.Param("id")
+		objID, err := primitive.ObjectIDFromHex(id)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Status": http.StatusBadRequest, "Message": "error", "data": "Invalid ID"})
+			return
+		}
+
+		result, err := BlogCollection.DeleteOne(ctx, bson.M{"_id": objID})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Status": http.StatusInternalServerError, "Message": "error", "data": err.Error()})
+			return
+		}
+
+		if result.DeletedCount == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"Status": http.StatusNotFound, "Message": "error", "data": "Blog not found"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"Status": http.StatusOK, "Message": "success", "data": "Blog deleted successfully"})
+	}
+}
+
+// GetBlogBySlug retrieves a blog post by its slug
+func GetBlogBySlug() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		slug := c.Param("slug")
+		var blog models.Blog
+
+		// Find the blog by slug
+		err := BlogCollection.FindOne(ctx, bson.M{"slug": slug, "published": true}).Decode(&blog)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"Status": http.StatusNotFound, "Message": "error", "data": "Blog not found"})
+			return
+		}
+
+		blog.CoverImage, err = getPresignURL(blog.CoverImage)
+		if err != nil {
+			blog.CoverImage = ""
+		}
+
+		c.JSON(http.StatusOK, gin.H{"Status": http.StatusOK, "Message": "success", "data": blog})
+	}
+}
+
+// GetPublishedBlogs retrieves all published blog posts
+func GetPublishedBlogs() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		cursor, err := BlogCollection.Find(ctx, bson.M{"published": true}) // Filter for published blogs
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Status": http.StatusInternalServerError, "Message": "error", "data": err.Error()})
+			return
+		}
+		defer cursor.Close(ctx)
+
+		var blogs []models.Blog
+		if err = cursor.All(ctx, &blogs); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Status": http.StatusInternalServerError, "Message": "error", "data": err.Error()})
+			return
+		}
+		fmt.Print(blogs)
+		if blogs == nil {
+			c.JSON(http.StatusNotFound, gin.H{"Status": http.StatusNoContent, "Message": "error", "data": "No blog found"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"Status": http.StatusOK, "Message": "success", "data": blogs})
+	}
+}
+
+// ArchiveBlog archives a blog post
+func ArchiveBlog() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if !checkAdmin(ctx, c) {
+			c.JSON(http.StatusForbidden, gin.H{"message": "You're not authroize for this."})
+			return
+		}
+
+		id := c.Param("id")
+		objID, err := primitive.ObjectIDFromHex(id)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Status": http.StatusBadRequest, "Message": "error", "data": "Invalid ID"})
+			return
+		}
+
+		update := bson.M{"$set": bson.M{"isArchived": true, "published": "false"}} // Set IsArchived to true
+		result, err := BlogCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Status": http.StatusInternalServerError, "Message": "error", "data": err.Error()})
+			return
+		}
+
+		if result.MatchedCount == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"Status": http.StatusNotFound, "Message": "error", "data": "Blog not found"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"Status": http.StatusOK, "Message": "success", "data": "Blog archived successfully"})
 	}
 }
