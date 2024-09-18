@@ -258,6 +258,26 @@ func GetAllContentItems() gin.HandlerFunc {
 			}
 			contentItems = append(contentItems, singleContentItem)
 		}
+		for i, item := range contentItems {
+			if content, ok := item.Content.(primitive.A); ok {
+				updatedContent := make([]interface{}, len(content))
+				for j, contentItem := range content {
+					if contentItem != nil {
+						if strItem, ok := contentItem.(string); ok {
+							url, err := getPresignURL(strItem)
+							if err == nil {
+								updatedContent[j] = url
+							} else {
+								updatedContent[j] = ""
+							}
+						} else {
+							updatedContent[j] = contentItem
+						}
+					}
+				}
+				contentItems[i].Content = updatedContent // Assign the updated slice back to Content
+			}
+		}
 
 		c.JSON(http.StatusOK, gin.H{"Status": http.StatusOK, "Message": "success", "data": contentItems})
 	}
