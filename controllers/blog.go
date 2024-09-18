@@ -170,6 +170,7 @@ func GetBlogs() gin.HandlerFunc {
 			{Key: "created_at", Value: 1},
 			{Key: "keywords", Value: 1},
 			{Key: "author", Value: 1},
+			{Key: "published", Value: 1},
 		}
 
 		cursor, err := BlogCollection.Find(ctx, bson.D{}, options.Find().SetProjection(projection))
@@ -186,6 +187,7 @@ func GetBlogs() gin.HandlerFunc {
 			CreatedAt  time.Time          `bson:"created_at" json:"created_at"`
 			Author     string             `bson:"author" json:"author"`
 			Keywords   []string           `bson:"keywords" json:"keywords"`
+			Published  bool               `bson:"published" json:"published"`
 		}
 
 		if err := cursor.All(ctx, &blogs); err != nil {

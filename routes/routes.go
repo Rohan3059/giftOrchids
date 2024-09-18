@@ -144,5 +144,4 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/admin/content/delete-file-content/:contentItemId/:index", controllers.DeleteImageFromContentItem())
 	incomingRoutes.DELETE("/admin/content/delete/:id", controllers.DeleteContentItem())
 	incomingRoutes.GET("/admin/contents", controllers.GetAllContentItems())
-
 }
