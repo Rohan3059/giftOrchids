@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -104,8 +105,8 @@ func CreateBlog() gin.HandlerFunc {
 
 }
 
-// PublishBlog updates a blog post to set it as published
-func PublishBlog() gin.HandlerFunc {
+// TogglePublishBlog toggles the published status of a blog post
+func TogglePublishBlog() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -117,10 +118,17 @@ func PublishBlog() gin.HandlerFunc {
 			return
 		}
 
-		// Update the blog to set Published to true and IsArchived to false
+		var blog models.Blog
+		err = BlogCollection.FindOne(ctx, bson.M{"_id": objId}).Decode(&blog)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"Error": "Blog not found"})
+			return
+		}
+
+		newPublishedStatus := !blog.Published
 		update := bson.M{
 			"$set": bson.M{
-				"published":   true,
+				"published":   newPublishedStatus,
 				"is_archived": false,
 			},
 		}
@@ -136,7 +144,7 @@ func PublishBlog() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"Status": http.StatusOK, "Message": "Blog published successfully"})
+		c.JSON(http.StatusOK, gin.H{"Status": http.StatusOK, "Message": "Blog publish status toggled successfully", "Published": newPublishedStatus})
 	}
 }
 
@@ -191,6 +199,7 @@ func GetBlogs() gin.HandlerFunc {
 		}
 
 		if err := cursor.All(ctx, &blogs); err != nil {
+
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode blogs"})
 			return
 		}
@@ -246,17 +255,8 @@ func UpdateBlog() gin.HandlerFunc {
 		}
 
 		title := c.PostForm("title")
-		if title == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "title is required"})
-			return
-		}
 
 		slug := c.PostForm("slug")
-
-		if slug == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"Error": "slug is required"})
-			return
-		}
 
 		subtitle := c.PostForm("subtitle")
 
@@ -310,7 +310,16 @@ func UpdateBlog() gin.HandlerFunc {
 			setUpdate["author"] = author
 		}
 		if keywords != "" {
-			setUpdate["keywords"] = keywords
+			var keywordsArray []string
+
+			if keywords != "" {
+				err := json.Unmarshal([]byte(keywords), &keywordsArray)
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
+					return
+				}
+			}
+			setUpdate["keywords"] = keywordsArray
 		}
 		if url != "" {
 			setUpdate["coverImage"] = url
@@ -437,7 +446,19 @@ func ArchiveBlog() gin.HandlerFunc {
 			return
 		}
 
-		update := bson.M{"$set": bson.M{"isArchived": true, "published": "false"}} // Set IsArchived to true
+		status := c.Query("status")
+		if status == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"Status": http.StatusBadRequest, "Message": "error", "data": "Archive status can not be empty"})
+			return
+		}
+		//parse as boolean
+		isArchived, err := strconv.ParseBool(status)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Status": http.StatusBadRequest, "Message": "error", "data": "Invalid status"})
+			return
+		}
+
+		update := bson.M{"$set": bson.M{"isArchived": isArchived, "published": false}} // Set IsArchived to true
 		result, err := BlogCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"Status": http.StatusInternalServerError, "Message": "error", "data": err.Error()})

@@ -133,7 +133,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/admin/post-blog", controllers.CreateBlog())
 	incomingRoutes.GET("/admin/blogs", controllers.GetBlogs())
 	incomingRoutes.GET("/admin/blog/:id", controllers.GetBlogByID())
-	incomingRoutes.POST("/admin/blog/publish/:id", controllers.PublishBlog())
+	incomingRoutes.POST("/admin/blog/publish/:id", controllers.TogglePublishBlog())
 	incomingRoutes.POST("/admin/blog/archive/:id", controllers.ArchiveBlog())
 	incomingRoutes.DELETE("/admin/blog/delete/:id", controllers.DeleteBlog())
 	incomingRoutes.POST("/admin/blog/update/:id", controllers.UpdateBlog())

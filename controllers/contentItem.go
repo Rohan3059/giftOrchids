@@ -12,6 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var contentCollection *mongo.Collection = database.ProductData(database.Client, "ContentItem")
@@ -423,13 +424,14 @@ func UpdateFileContentItemContent() gin.HandlerFunc {
 			},
 		}
 
-		_, err = contentCollection.UpdateOne(ctx, bson.M{"contentKey": contentKey}, update)
+		var updatedContentItem models.ContentItem
+		err = contentCollection.FindOneAndUpdate(ctx, bson.M{"contentKey": contentKey}, update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&updatedContentItem)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Status": http.StatusInternalServerError, "Message": "error", "data": "Failed to update content item"})
+			c.JSON(http.StatusInternalServerError, gin.H{"Status": http.StatusInternalServerError, "Message": "error", "data": "Failed to fetch updated content item"})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"Status": http.StatusOK, "Message": "success", "data": "Content item updated successfully"})
+		c.JSON(http.StatusOK, gin.H{"Status": http.StatusOK, "Message": "success", "data": updatedContentItem})
 	}
 }
 
