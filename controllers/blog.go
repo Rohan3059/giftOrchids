@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -384,10 +383,16 @@ func GetBlogBySlug() gin.HandlerFunc {
 		slug := c.Param("slug")
 		var blog models.Blog
 
+		if slug == "" {
+			c.JSON(http.StatusNotFound, gin.H{"Status": http.StatusBadRequest, "Error": "Slug value can not be empty"})
+			return
+		}
+
 		// Find the blog by slug
 		err := BlogCollection.FindOne(ctx, bson.M{"slug": slug, "published": true}).Decode(&blog)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"Status": http.StatusNotFound, "Message": "error", "data": "Blog not found"})
+
+			c.JSON(http.StatusNotFound, gin.H{"Status": http.StatusNotFound, "error": err.Error(), "message": "Blog not found"})
 			return
 		}
 
@@ -418,10 +423,20 @@ func GetPublishedBlogs() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"Status": http.StatusInternalServerError, "Message": "error", "data": err.Error()})
 			return
 		}
-		fmt.Print(blogs)
+
 		if blogs == nil {
 			c.JSON(http.StatusNotFound, gin.H{"Status": http.StatusNoContent, "Message": "error", "data": "No blog found"})
 			return
+		}
+
+		for i, blog := range blogs {
+			if blog.CoverImage != "" {
+				blogs[i].CoverImage, err = getPresignURL(blogs[i].CoverImage)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"Error": "Failed to generate presigned URL"})
+					return
+				}
+			}
 		}
 
 		c.JSON(http.StatusOK, gin.H{"Status": http.StatusOK, "Message": "success", "data": blogs})

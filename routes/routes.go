@@ -34,7 +34,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.GET("/product-reference", controllers.GetProductReferenceHandler())
 	incomingRoutes.GET("/featured-products", controllers.GetFeaturedProducts())
 	incomingRoutes.GET("/blogs", controllers.GetPublishedBlogs())
-	incomingRoutes.GET("/blog/get", controllers.GetBlogBySlug())
+	incomingRoutes.GET("/blog/get/:slug", controllers.GetBlogBySlug())
 	incomingRoutes.GET("/all-attributesType", controllers.GetAllAttributes())
 	incomingRoutes.GET("/get-attributeType/:id", controllers.GetAttributeByID())
 	incomingRoutes.GET("/approved-product-reviews", controllers.GetProductApprovedReviews())
