@@ -247,7 +247,7 @@ func GetAllContentItems() gin.HandlerFunc {
 
 		results, err := contentCollection.Find(ctx, bson.M{})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Status": http.StatusInternalServerError, "Message": "error", "data": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"Status": http.StatusInternalServerError, "Message": "error", "Error": err.Error()})
 			return
 		}
 
