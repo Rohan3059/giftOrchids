@@ -360,9 +360,6 @@ func GetAllProductsForASellerHandler() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-
-		//itertate through all products and generate presign url for image
-
 		for i := 0; i < len(products); i++ {
 
 			if products[i].Image != nil {
@@ -385,6 +382,11 @@ func GetAllProductsForASellerHandler() gin.HandlerFunc {
 
 				}
 
+			}
+
+			if products[i].AddedBy == "" {
+
+				products[i].AddedBy = "seller"
 			}
 		}
 

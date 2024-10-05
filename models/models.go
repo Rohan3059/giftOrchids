@@ -21,6 +21,7 @@ type Product struct {
 	PriceRange       []ProductPriceRange  `json:"pricerange"`
 	Variant          []ProductVariant     `json:"variant"`
 	Reviews          []primitive.ObjectID ` bson:"reviews" json:"reviews" `
+	AddedBy          string               `bson:"addedBy" json:"addedBy"`
 	Created_at       time.Time            `json:"created_at" bson:"created_at" `
 	Updated_at       time.Time            `json:"updated_at" bson:"updated_at" `
 	IsArchived       bool                 `json:"isArchived" bson:"isArchived" `
@@ -117,6 +118,7 @@ type Seller struct {
 	Token           string             `json:"token"`
 	User_type       string             `json:"user_type" Vallidate:"required, eq=ADMIN|eq=SELLER"`
 	Refresh_token   string             `json:"refresh_token"`
+	ConsetntToAdmin bool               `json:"consentToAdmin" bson:"consentToAdmin"`
 	Created_at      time.Time          `json:"created_at"`
 	Updated_at      time.Time          `json:"updated_at"`
 	IsArchived      bool               `json:"archived"`

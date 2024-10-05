@@ -317,6 +317,11 @@ func ProductViewerAdmin() gin.HandlerFunc {
 		var sellers []string
 		sellers = append(sellers, sellerId)
 		product.SellerRegistered = sellers
+		if sellerId != "" {
+			product.AddedBy = "seller"
+		} else {
+			product.AddedBy = "Admin"
+		}
 
 		_, anyerr := ProductCollection.InsertOne(ctx, product)
 		if anyerr != nil {
@@ -418,6 +423,7 @@ func AddProductByAdmin() gin.HandlerFunc {
 		var sellers []string
 		sellers = append(sellers, sellerId)
 		product.SellerRegistered = sellers
+		product.AddedBy = "Admin"
 
 		_, anyerr := ProductCollection.InsertOne(ctx, product)
 		if anyerr != nil {

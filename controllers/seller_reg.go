@@ -494,6 +494,13 @@ func SellerLicenseUpdate() gin.HandlerFunc {
 			return
 		}
 
+		Consent := c.PostForm("consentToAdmin")
+
+		ConsentToAdmin, err := strconv.ParseBool(Consent)
+		if err != nil {
+			ConsentToAdmin = true
+		}
+
 		HaveBusinessLicensesStr := c.PostForm("havebusinesslicenses")
 		HaveExportPermissionStr := c.PostForm("haveexportpermission")
 
@@ -641,6 +648,7 @@ func SellerLicenseUpdate() gin.HandlerFunc {
 			"companydetail.HaveExportPermission": seller.CompanyDetail.HaveExportPermission,
 			"companydetail.BusinessLicenses":     seller.CompanyDetail.BusinessLicenses,
 			"companydetail.ExportPermission":     seller.CompanyDetail.ExportPermission,
+			"consentToAdmin":                     ConsentToAdmin,
 		}}
 
 		// Execute update operation
