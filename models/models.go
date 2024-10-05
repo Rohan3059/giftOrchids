@@ -118,7 +118,7 @@ type Seller struct {
 	Token           string             `json:"token"`
 	User_type       string             `json:"user_type" Vallidate:"required, eq=ADMIN|eq=SELLER"`
 	Refresh_token   string             `json:"refresh_token"`
-	ConsetntToAdmin bool               `json:"consentToAdmin" bson:"consentToAdmin"`
+	ConsentToAdmin  bool               `json:"consentToAdmin" bson:"consentToAdmin"`
 	Created_at      time.Time          `json:"created_at"`
 	Updated_at      time.Time          `json:"updated_at"`
 	IsArchived      bool               `json:"archived"`

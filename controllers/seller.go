@@ -165,6 +165,51 @@ func GetSeller() gin.HandlerFunc {
 // 	}
 // }
 
+// toggle consentToAdmin value
+func ToggleConsentToAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		var seller models.Seller
+		sellerID, exists := c.Get("uid")
+		if !exists {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Seller ID not found in context"})
+			return
+		}
+
+		// Convert sellerID to ObjectID
+		sellerObjID, err := primitive.ObjectIDFromHex(sellerID.(string))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid Seller ID"})
+			return
+		}
+
+		filter := bson.D{primitive.E{Key: "_id", Value: sellerObjID}}
+		err = SellerCollection.FindOne(ctx, filter).Decode(&seller)
+		if err != nil {
+			fmt.Print(err)
+			c.IndentedJSON(500, "Internal server error")
+			return
+		}
+		if seller.ConsentToAdmin {
+			seller.ConsentToAdmin = false
+		} else {
+			seller.ConsentToAdmin = true
+		}
+
+		update := bson.M{"$set": bson.M{"consentToAdmin": seller.ConsentToAdmin}}
+		_, err = SellerCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			fmt.Print(err)
+			c.IndentedJSON(500, "Internal server error")
+			return
+		}
+		c.Header("content-type", "application/json")
+		c.JSON(http.StatusOK, gin.H{"success": "updated successfully"})
+
+	}
+}
+
 // delete specific seller
 func DeleteSeller() gin.HandlerFunc {
 	return func(c *gin.Context) {
