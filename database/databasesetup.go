@@ -52,12 +52,12 @@ var Client *mongo.Client = DBSet()
 
 func UserData(client *mongo.Client, collectionName string) *mongo.Collection {
 
-	var collection = client.Database("growthbiz").Collection(collectionName)
+	var collection = client.Database("giftOrchids").Collection(collectionName)
 	return collection
 }
 
 func ProductData(client *mongo.Client, collectionName string) *mongo.Collection {
-	var productCollection = client.Database("growthbiz").Collection(collectionName)
+	var productCollection = client.Database("giftOrchids").Collection(collectionName)
 	return productCollection
 }
 
