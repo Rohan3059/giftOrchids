@@ -20,6 +20,7 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.Use(cors.New(config))
 	incomingRoutes.Use(gzip.Gzip(gzip.DefaultCompression))
 	incomingRoutes.GET("/search-suggestions", controllers.SuggestionsHandler())
+	incomingRoutes.GET("/getrecommendations", controllers.GetUserSpecificProduct())
 	incomingRoutes.GET("/search-product", controllers.SearchProduct())
 	incomingRoutes.GET("/getcategory", controllers.GetCategory())
 	incomingRoutes.GET("/categories", controllers.GetCategoryTree())

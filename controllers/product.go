@@ -808,6 +808,100 @@ func GetAllProducts() gin.HandlerFunc {
 	}
 }
 
+// user specific product
+// accept two param age and gender if these param are not found it will take users
+// age and gender to display the product
+func GetUserSpecificProduct() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var searchProducts []models.Product
+		var user models.USer
+		var age string
+		var gender string
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
+		age = fmt.Sprintf("%d", c.Query("age"))
+		gender = c.Query("gender")
+
+		if age != "" && gender != "" {
+			userId, exist := c.Get("uid")
+			if !exist {
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "User ID not found"})
+				return
+			}
+
+			oid, err := primitive.ObjectIDFromHex(userId.(string))
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid user ID"})
+				return
+			}
+			err = UserCollection.FindOne(ctx, bson.M{"_id": oid}).Decode(&user)
+			if err != nil {
+				c.JSON(http.StatusNotFound, gin.H{"error": "User not found: " + err.Error()})
+				return
+			}
+			// Calculate age
+			currentDate := time.Now()
+			dob := user.DOB
+			ageCal := currentDate.Year() - dob.Year()
+
+			// Adjust for the user's birthday not having occurred this year yet
+			if currentDate.Month() < dob.Month() || (currentDate.Month() == dob.Month() && currentDate.Day() < dob.Day()) {
+				ageCal--
+			}
+			age = fmt.Sprintf("%d", ageCal)
+			gender = user.Gender
+		}
+		filter := bson.M{}
+
+		if gender != "" {
+			filter["gender"] = bson.M{
+				"$in": bson.A{gender, "both"},
+			}
+		}
+
+		filter["$expr"] = bson.M{
+			"$and": bson.A{
+				bson.M{"$gte": bson.A{
+					bson.M{"$toInt": bson.M{"$split": bson.A{"$agegroup", "-"}[0]}},
+					age,
+				}},
+				bson.M{"$lte": bson.A{
+					bson.M{"$toInt": bson.M{"$split": bson.A{"$agegroup", "-"}[1]}},
+					age,
+				}},
+			},
+		}
+
+		cursor, err := ProductCollection.Find(ctx, filter)
+		if err != nil {
+			c.IndentedJSON(http.StatusNotFound, "Something went wrong while fetching the data")
+			return
+		}
+		defer cursor.Close(ctx)
+
+		if err := cursor.All(ctx, &searchProducts); err != nil {
+			log.Println(err)
+			c.IndentedJSON(http.StatusBadRequest, "Invalid")
+			return
+		}
+
+		// Iterate over each product and get pre-signed URLs for each image
+		for i := range searchProducts {
+			for j := range searchProducts[i].Image {
+				// Get pre-signed URL for the image
+				url, err := getPresignURL(searchProducts[i].Image[j])
+				if err != nil {
+					log.Println("Error generating pre-signed URL for image:", err)
+					continue
+				}
+				// Update the image URL in the product
+				searchProducts[i].Image[j] = url
+			}
+		}
+
+		c.IndentedJSON(http.StatusOK, searchProducts)
+	}
+}
 func ApproveProduct() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
