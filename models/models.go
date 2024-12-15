@@ -13,6 +13,7 @@ type Product struct {
 	Image            []string             `json:"image" validate:"required"`
 	Discription      string               `json:"discription" validate:"required"`
 	Category         string               `json:"category" validate:"required"`
+	BestFit          string               `json:"bestfit" validate:"required"`
 	SKU              string               `json:"sku" validate:"required"`
 	Featured         bool                 `json:"featured" bson:"featured"`
 	Approved         bool                 `json:"approved"`
@@ -187,6 +188,7 @@ type USer struct {
 	UserName      string             `json:"user_name" bson:"user_name" `
 	MobileNo      string             `json:"mobileno" bson:"mobileno" `
 	Email         string             `json:"email" bson:"email"`
+	DOB           time.Time          `json:"dob" bson:"dob"`
 	OTP           string             `json:"otp" bson:"otp" `
 	Token         string             `json:"token" bson:"token" `
 	Refresh_token string             `json:"refresh_token" bson:"refresh_token"`

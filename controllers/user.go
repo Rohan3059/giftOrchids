@@ -44,6 +44,7 @@ func UpdateUserProfile() gin.HandlerFunc {
 		mobile := user.MobileNo
 		name := user.UserName
 		address := user.User_Address
+		dob := user.DOB
 
 		updated_at, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 
@@ -65,6 +66,9 @@ func UpdateUserProfile() gin.HandlerFunc {
 
 		if address != "" {
 			update = append(update, bson.M{"$set": bson.M{"address": address}})
+		}
+		if !dob.IsZero() {
+			update = append(update, bson.M{"$set": bson.M{"dob": dob}})
 		}
 
 		update = append(update, bson.M{"$set": bson.M{"updated_at": updated_at}})
